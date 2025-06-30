@@ -32,7 +32,7 @@ public final class NdRange {
      *                       {@link Executor#getMaxLocalThread()}
      * @return New 1D {@link NdRange} Object
      */
-    public static NdRange OneDimensional(int maxGlobalRange, int maxLocalRange) {
+    public static NdRange oneDimensional(int maxGlobalRange, int maxLocalRange) {
         return new NdRange(maxGlobalRange, maxLocalRange, 1, 1, 1, 1);
     }
 
@@ -57,7 +57,7 @@ public final class NdRange {
      *                        {@link Executor#getMaxLocalThread()}
      * @return New 2D {@link NdRange} Object
      */
-    public static NdRange TwoDimensional(int maxGlobalRangeX, int maxGlobalRangeY, //
+    public static NdRange twoDimensional(int maxGlobalRangeX, int maxGlobalRangeY, //
                                          int maxLocalRangeX, int maxLocalRangeY) {
 
         return new NdRange(maxGlobalRangeX, maxLocalRangeX, maxGlobalRangeY, maxLocalRangeY, 1, 1);
@@ -92,7 +92,7 @@ public final class NdRange {
      *                        {@link Executor#getMaxLocalThread()}
      * @return New 3D {@link NdRange} Object
      */
-    public static NdRange ThreeDimensional(int maxGlobalRangeX, int maxGlobalRangeY, int maxGlobalRangeZ, //
+    public static NdRange threeDimensional(int maxGlobalRangeX, int maxGlobalRangeY, int maxGlobalRangeZ, //
                                            int maxLocalRangeX, int maxLocalRangeY, int maxLocalRangeZ) {
 
         return new NdRange(maxGlobalRangeX, maxLocalRangeX, maxGlobalRangeY, maxLocalRangeY, maxGlobalRangeZ, maxLocalRangeZ);

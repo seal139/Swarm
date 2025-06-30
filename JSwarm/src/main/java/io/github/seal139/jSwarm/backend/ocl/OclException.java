@@ -9,6 +9,17 @@ public final class OclException extends BackendException {
 
     private static final long serialVersionUID = -3271554093353725232L;
 
+    OclException(Throwable e) {
+        super(e.getMessage());
+
+        this.setStackTrace(e.getStackTrace());
+        this.initCause(e.getCause());
+    }
+
+    OclException(String e) {
+        super(e);
+    }
+
     OclException(int i) {
         super(constructMessage(i));
     }

@@ -1,99 +1,137 @@
 package io.github.seal139.jSwarm.backend.jvm;
 
+import java.lang.invoke.CallSite;
+import java.lang.invoke.LambdaMetafactory;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Supplier;
 
 import io.github.seal139.jSwarm.backend.BackendException;
 import io.github.seal139.jSwarm.backend.Kernel;
+import io.github.seal139.jSwarm.misc.Common;
 import io.github.seal139.jSwarm.runtime.NdRange;
 import io.github.seal139.jSwarm.runtime.Program;
+import io.github.seal139.jSwarm.runtime.WorkItemController;
 
 public class JvmKernel implements Kernel {
 
-    private static final ForkJoinPool exec = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
+    private final Supplier<Program> ctor;
 
-    private final Method         method;
-    private final Constructor<?> constr;
+    private final MethodHandle spreadInvoker;
 
-    JvmKernel(Constructor<?> constr, Method method) {
-        this.method = method;
-        this.constr = constr;
+    private final String  name;
+    private final boolean synced;
+
+    final int batch = Runtime.getRuntime().availableProcessors();
+
+    ExecutorService exec = null;
+
+    final MethodType invokedType   = MethodType.methodType(Supplier.class);
+    final MethodType samMethodType = MethodType.methodType(Object.class);
+
+    JvmKernel(Constructor<?> ctor, Method method, boolean sync) throws JvmException {
+
+        this.name   = method.getName();
+        this.synced = sync;
+
+        MethodHandle hwnd = null;
+
+        Supplier<Program> ivkr = null;
+
+        try {
+            final MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+            ctor.setAccessible(true);
+            final MethodHandle cnstor = lookup.unreflectConstructor(ctor);
+
+            method.setAccessible(true);
+            final MethodHandle mh = lookup.unreflect(method);
+
+            hwnd = mh.asSpreader(Number[].class, method.getParameterCount()); //
+
+            // Constructor fast-access
+            CallSite site = LambdaMetafactory.metafactory(lookup, "get", //
+                    this.invokedType, //
+                    this.samMethodType, //
+                    cnstor, //
+                    cnstor.type() //
+            );
+
+            ivkr = (Supplier<Program>) site.getTarget().invokeExact();
+        }
+        catch (Throwable e) {
+            throw new JvmException(e);
+        }
+
+        this.ctor          = ivkr;
+        this.spreadInvoker = hwnd;
     }
 
-    void run(NdRange range, Number... param) throws BackendException {
+    Runnable run(NdRange range, Number... param) throws BackendException {
 
-        // Max indexer
-        final int maxX = range.getXGlobal() * range.getXLocal();
-        final int maxY = range.getYGlobal() * range.getYLocal();
-        final int maxZ = range.getZGlobal() * range.getZLocal();
+        // To simulate local thread barrier efficiently, inverse the loop order. Loop
+        // through global first, then the local. So we do not need local thread barrier
+        // anymore
+        // This also can improve performance by loop larger number through smaller
+        // thread loop
 
-        final CyclicBarrier barrier = new CyclicBarrier(maxX * maxY * maxZ);
+        int sizeX      = range.getXLocal();
+        int sizeY      = range.getYLocal();
+        int sizeZ      = range.getZLocal();
+        int totalItems = sizeX * sizeY * sizeZ;
 
-        // Current indexer
-        for (int currGlobX = 0, currX = 0; currGlobX < range.getXGlobal(); currGlobX++) {
-            for (int currloclX = 0; currloclX < range.getXLocal(); currloclX++, currX++) {
+        final int itemsPerBatch = this.synced ? 1 : (((totalItems + this.batch) - 1) / this.batch);
 
-                for (int currGlobY = 0, currY = 0; currGlobY < range.getYGlobal(); currGlobY++) {
-                    for (int currloclY = 0; currloclY < range.getYLocal(); currloclY++, currY++) {
+        final CountDownLatch latch = new CountDownLatch(this.synced ? totalItems : this.batch);
 
-                        for (int currGlobZ = 0, currZ = 0; currGlobZ < range.getZGlobal(); currGlobZ++) {
-                            for (int currloclZ = 0; currloclZ < range.getZLocal(); currloclZ++, currZ++) {
-                                _run(barrier, //
-                                        range.getXGlobal(), range.getXLocal(), maxX, currGlobX, currloclX, currX, //
-                                        range.getYGlobal(), range.getYLocal(), maxY, currGlobY, currloclY, currY, //
-                                        range.getZGlobal(), range.getZLocal(), maxZ, currGlobZ, currloclZ, currZ, //
-                                        param);
+        final CyclicBarrier synchronizer = new CyclicBarrier(this.synced ? totalItems : 1);
 
-                            }
-                        }
-                    }
+        this.exec = Executors.newFixedThreadPool(this.synced ? totalItems : this.batch);
 
+        for (int start = 0; start < /* endIndex */ totalItems; start += itemsPerBatch) {
+
+            final int _start = start;
+
+            Common.queue(() -> {
+                int end = Math.min(totalItems, _start + itemsPerBatch);
+
+                try {
+                    this.exec.execute(new WorkItemController(latch, synchronizer, this.ctor, this.spreadInvoker, param, range, _start, end));
                 }
-            }
+                catch (RuntimeException e) {
+                    throw new JvmException(e.getCause());
+                }
+                catch (Throwable e) {
+                    throw new JvmException(e);
+                }
+
+                return null;
+            });
         }
-    }
 
-    private void _run(CyclicBarrier barrier, //
-                      int globalX, int localX, int totalX, int currentGlobalX, int currentLocalX, int currentX, //
-                      int globalY, int localY, int totalY, int currentGlobalY, int currentLocalY, int currentY, //
-                      int globalZ, int localZ, int totalZ, int currentGlobalZ, int currentLocalZ, int currentZ, //
-                      Number... param) {
+        return (Runnable) () -> {
 
-        exec.execute(() -> {
-            Program obj;
             try {
-                obj = (Program) this.constr.newInstance(barrier, //
-                        globalX, localX, totalX, currentGlobalX, currentLocalX, currentX, //
-                        globalY, localY, totalY, currentGlobalY, currentLocalY, currentY, //
-                        globalZ, localZ, totalZ, currentGlobalZ, currentLocalZ, currentZ);
-
-                this.method.invoke(obj, param);
-
+                latch.await();
             }
-            catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
-        });
-    }
+            finally {
+                JvmKernel.this.exec.shutdown();
+            }
+        };
 
-    void await() {
-        if (exec.isQuiescent()) {
-            return;
-        }
-
-        if (exec.isShutdown()) {
-            return;
-        }
-
-        exec.awaitQuiescence(Integer.MAX_VALUE, TimeUnit.DAYS); // Wait forever
     }
 
     @Override
-    public String getName() { return this.method.getName(); }
+    public String getName() { return this.name; }
 
 }

@@ -196,8 +196,6 @@ public abstract class Vector<T extends Number> extends Number implements NativeR
     @Override
     @SuppressWarnings("unchecked")
     public boolean removeAll(Collection<?> c) {
-        // TODO Optimization is required
-
         boolean removed = false;
 
         for (Object obj : c) {

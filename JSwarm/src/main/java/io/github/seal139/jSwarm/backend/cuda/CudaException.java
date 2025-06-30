@@ -9,6 +9,17 @@ public final class CudaException extends BackendException {
 
     private static final long serialVersionUID = -3271554093353725232L;
 
+    CudaException(Throwable e) {
+        super(e.getMessage());
+
+        this.setStackTrace(e.getStackTrace());
+        this.initCause(e.getCause());
+    }
+
+    CudaException(String e) {
+        super(e);
+    }
+
     CudaException(int i) {
         super(constructMessage(i));
     }

@@ -160,7 +160,7 @@ public class OclContext implements Context {
             return loadProgram(Decompiler.process(new OclTranspiler(), program));
         }
         catch (IOException e) {
-            throw new BackendException(e.getMessage());
+            throw new OclException(e);
         }
     }
 
@@ -200,7 +200,7 @@ public class OclContext implements Context {
     @Override
     public void launchAsync(Kernel kernel, NdRange ndRange, Number... arguments) throws BackendException, DeallocatedException {
         if (this.device.getMaxLocalThread() < (ndRange.getXLocal() * ndRange.getYLocal() * ndRange.getZLocal())) {
-            throw new BackendException("Local Worksize excedeed maximum thread");
+            throw new OclException("Local Worksize excedeed maximum thread");
         }
 
         long[] args   = new long[arguments.length];

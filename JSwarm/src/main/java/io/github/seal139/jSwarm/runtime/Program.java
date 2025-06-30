@@ -1,9 +1,5 @@
 package io.github.seal139.jSwarm.runtime;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
@@ -19,55 +15,16 @@ import io.github.seal139.jSwarm.misc.FunctionIntrinsic;
  */
 public abstract class Program {
 
-    public Program(CyclicBarrier barrier, //
-            int globalX, int localX, int totalX, int currentGlobalX, int currentLocalX, int currentX, //
-            int globalY, int localY, int totalY, int currentGlobalY, int currentLocalY, int currentY, //
-            int globalZ, int localZ, int totalZ, int currentGlobalZ, int currentLocalZ, int currentZ) {
+    private int globalRangeX, globalRangeY, globalRangeZ, //
+            localRangeX, localRangeY, localRangeZ;
 
-        this.barrier = barrier;
+    private int currentGlobalRangeX, currentGlobalRangeY, currentGlobalRangeZ, //
+            currentLocalRangeX, currentLocalRangeY, currentLocalRangeZ, //
+            currentRangeX, currentRangeY, currentRangeZ; //
 
-        this.globalRangeX        = globalX;
-        this.localRangeX         = localX;
-        this.totalRangeX         = totalX;
-        this.currentGlobalRangeX = currentGlobalX;
-        this.currentLocalRangeX  = currentLocalX;
-        this.currentRangeX       = currentX;
+    private long totalRangeX, totalRangeY, totalRangeZ;
 
-        this.globalRangeY        = globalY;
-        this.localRangeY         = localY;
-        this.totalRangeY         = totalY;
-        this.currentGlobalRangeY = currentGlobalY;
-        this.currentLocalRangeY  = currentLocalY;
-        this.currentRangeY       = currentY;
-
-        this.globalRangeZ        = globalZ;
-        this.localRangeZ         = localZ;
-        this.totalRangeZ         = totalZ;
-        this.currentGlobalRangeZ = currentGlobalZ;
-        this.currentLocalRangeZ  = currentLocalZ;
-        this.currentRangeZ       = currentZ;
-    }
-
-    private final CyclicBarrier barrier;
-
-    protected final int globalRangeX, globalRangeY, globalRangeZ;
-    protected final int localRangeX, localRangeY, localRangeZ;
-    protected final int totalRangeX, totalRangeY, totalRangeZ;
-    protected final int currentGlobalRangeX, currentGlobalRangeY, currentGlobalRangeZ;
-    protected final int currentLocalRangeX, currentLocalRangeY, currentLocalRangeZ;
-    protected final int currentRangeX, currentRangeY, currentRangeZ;
-
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.PARAMETER)
-    @FunctionIntrinsic
-    protected static @interface Global {
-    }
-
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.PARAMETER)
-    @FunctionIntrinsic
-    protected static @interface SharedMemory {
-    }
+    private CyclicBarrier synchronizer;
 
     protected <T extends Number> void set(Vector<T> vec, long index, T value) {
         vec.set(index, value);
@@ -76,6 +33,8 @@ public abstract class Program {
     protected <T extends Number> T get(Vector<T> vec, long index) {
         return vec.get(index);
     }
+
+    int count = 0;
 
     /**
      * Await all thread to complete execution at this point before continue <br/>
@@ -87,7 +46,7 @@ public abstract class Program {
     @FunctionIntrinsic
     protected void synchronize() {
         try {
-            this.barrier.await();
+            this.synchronizer.await();
         }
         catch (InterruptedException | BrokenBarrierException e) {
         }
@@ -1475,4 +1434,152 @@ public abstract class Program {
     protected final double truncfp64(double f) {
         return (long) f;
     }
+
+    // ========= Setter =========
+    @FunctionIntrinsic
+    public final int globalRangeX() {
+        return this.globalRangeX;
+    }
+
+    @FunctionIntrinsic
+    public final int globalRangeY() {
+        return this.globalRangeY;
+    }
+
+    @FunctionIntrinsic
+    public final int globalRangeZ() {
+        return this.globalRangeZ;
+    }
+
+    @FunctionIntrinsic
+    public final int localRangeX() {
+        return this.localRangeX;
+    }
+
+    @FunctionIntrinsic
+    public final int localRangeY() {
+        return this.localRangeY;
+    }
+
+    @FunctionIntrinsic
+    public final int localRangeZ() {
+        return this.localRangeZ;
+    }
+
+    @FunctionIntrinsic
+    public long totalRangeX() {
+        return this.totalRangeX;
+    }
+
+    @FunctionIntrinsic
+    public long totalRangeY() {
+        return this.totalRangeY;
+    }
+
+    @FunctionIntrinsic
+    public long totalRangeZ() {
+        return this.totalRangeZ;
+    }
+
+    @FunctionIntrinsic
+    public final int currentGlobalRangeX() {
+        return this.currentGlobalRangeX;
+    }
+
+    @FunctionIntrinsic
+    public final int currentGlobalRangeY() {
+        return this.currentGlobalRangeY;
+    }
+
+    @FunctionIntrinsic
+    public final int currentGlobalRangeZ() {
+        return this.currentGlobalRangeZ;
+    }
+
+    @FunctionIntrinsic
+    public final int currentLocalRangeX() {
+        return this.currentLocalRangeX;
+    }
+
+    @FunctionIntrinsic
+    public final int currentLocalRangeY() {
+        return this.currentLocalRangeY;
+    }
+
+    @FunctionIntrinsic
+    public final int currentLocalRangeZ() {
+        return this.currentLocalRangeZ;
+    }
+
+    @FunctionIntrinsic
+    public final int currentRangeX() {
+        return this.currentRangeX;
+    }
+
+    @FunctionIntrinsic
+    public final int currentRangeY() {
+        return this.currentRangeY;
+    }
+
+    @FunctionIntrinsic
+    public final int currentRangeZ() {
+        return this.currentRangeZ;
+    }
+
+    // ==
+
+    final void setNdRange(int lx, int gx, long tx, int ly, int gy, long ty, int lz, int gz, long tz) {
+        this.localRangeX  = lx;
+        this.globalRangeX = gx;
+        this.totalRangeX  = tx;
+
+        this.localRangeY  = ly;
+        this.globalRangeY = gy;
+        this.totalRangeY  = ty;
+
+        this.localRangeZ  = lz;
+        this.globalRangeZ = gz;
+        this.totalRangeZ  = tz;
+
+        this.currentRangeX = 0;
+        this.currentRangeY = 0;
+        this.currentRangeZ = 0;
+
+        this.currentLocalRangeX = 0;
+        this.currentLocalRangeY = 0;
+        this.currentLocalRangeZ = 0;
+
+        this.currentGlobalRangeX = 0;
+        this.currentGlobalRangeY = 0;
+        this.currentGlobalRangeZ = 0;
+    }
+
+    final void setLocalRange(int x, int y, int z) {
+        this.currentLocalRangeX = x;
+        this.currentLocalRangeY = y;
+        this.currentLocalRangeZ = z;
+    }
+
+    final void setCurrentRange(int x, int y, int z) {
+        this.currentRangeX = x;
+        this.currentRangeY = y;
+        this.currentRangeZ = z;
+    }
+
+    final void setCurrentGlobalRangeX(int currentGlobalRangeX, int currentRangeX) {
+        this.currentGlobalRangeX = currentGlobalRangeX;
+        this.currentRangeX       = currentRangeX + this.currentLocalRangeX;
+    }
+
+    final void setCurrentGlobalRangeY(int currentGlobalRangeY, int currentRangeY) {
+        this.currentGlobalRangeY = currentGlobalRangeY;
+        this.currentRangeY       = currentRangeY + this.currentLocalRangeY;
+    }
+
+    final void setCurrentGlobalRangeZ(int currentGlobalRangeZ, int currentRangeZ) {
+        this.currentGlobalRangeZ = currentGlobalRangeZ;
+        this.currentRangeZ       = currentRangeZ + this.currentLocalRangeZ;
+    }
+
+    final void setSynchronizer(CyclicBarrier synchronizer) { this.synchronizer = synchronizer; }
 }

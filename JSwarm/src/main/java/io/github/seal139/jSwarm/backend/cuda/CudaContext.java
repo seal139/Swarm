@@ -163,7 +163,7 @@ public class CudaContext implements Context {
             return loadProgram(Decompiler.process(new CudaTranspiler(), program));
         }
         catch (IOException e) {
-            throw new BackendException(e.getMessage());
+            throw new CudaException(e);
         }
     }
 
@@ -203,7 +203,7 @@ public class CudaContext implements Context {
     @Override
     public void launchAsync(Kernel kernel, NdRange ndRange, Number... arguments) throws BackendException, DeallocatedException {
         if (this.device.getMaxLocalThread() < (ndRange.getXLocal() * ndRange.getYLocal() * ndRange.getZLocal())) {
-            throw new BackendException("Local Worksize excedeed maximum thread");
+            throw new CudaException("Local Worksize excedeed maximum thread");
         }
 
         long[] args = new long[arguments.length];

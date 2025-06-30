@@ -9,6 +9,8 @@ import java.util.ListIterator;
  */
 public final class DoubleVector extends Vector<Double> {
 
+    private static final long serialVersionUID = -7780079757337634382L;
+
     private static final long WORD_SIZE  = 8;
     private static final long SHIFT_SIZE = 3;
 

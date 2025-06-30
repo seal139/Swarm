@@ -9,6 +9,8 @@ import java.util.ListIterator;
  */
 public final class ShortVector extends Vector<Short> {
 
+    private static final long serialVersionUID = -4190430668549781215L;
+
     private static final long WORD_SIZE  = 2;
     private static final long SHIFT_SIZE = 1;
 

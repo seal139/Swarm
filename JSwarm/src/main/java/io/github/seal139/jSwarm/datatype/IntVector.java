@@ -9,6 +9,8 @@ import java.util.ListIterator;
  */
 public final class IntVector extends Vector<Integer> {
 
+    private static final long serialVersionUID = 613457863113155896L;
+
     private static final long WORD_SIZE  = 4;
     private static final long SHIFT_SIZE = 2;
 

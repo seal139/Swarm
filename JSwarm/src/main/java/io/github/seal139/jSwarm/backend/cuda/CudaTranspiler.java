@@ -1,7 +1,9 @@
 package io.github.seal139.jSwarm.backend.cuda;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import io.github.seal139.jSwarm.backend.Transpiler;
 import io.github.seal139.jSwarm.runtime.TranspileException;
@@ -52,9 +54,8 @@ import io.github.seal139.jSwarm.transpiler.JParser.UnaryExpressionNotPlusMinusCo
 import io.github.seal139.jSwarm.transpiler.JParser.VariableDeclaratorContext;
 import io.github.seal139.jSwarm.transpiler.JParser.WhileStatementContext;
 import io.github.seal139.jSwarm.transpiler.JParser.WhileStatementNoShortIfContext;
-import io.github.seal139.jSwarm.transpiler.JParserBaseListener;
 
-public final class CudaTranspiler extends JParserBaseListener implements Transpiler {
+public final class CudaTranspiler extends Transpiler {
 
     private TranspileException e = null;
 
@@ -68,7 +69,35 @@ public final class CudaTranspiler extends JParserBaseListener implements Transpi
 
     private static final Map<String, String> replacement = new HashMap<>();
 
+    private static final Set<String> specialMapper = new HashSet<>();
+
     static {
+        specialMapper.add("globalRangeX");
+        specialMapper.add("globalRangeY");
+        specialMapper.add("globalRangeZ");
+
+        specialMapper.add("localRangeX");
+        specialMapper.add("localRangeY");
+        specialMapper.add("localRangeZ");
+
+        specialMapper.add("totalRangeX");
+        specialMapper.add("totalRangeY");
+        specialMapper.add("totalRangeZ");
+
+        specialMapper.add("currentGlobalRangeX");
+        specialMapper.add("currentGlobalRangeY");
+        specialMapper.add("currentGlobalRangeZ");
+
+        specialMapper.add("currentLocalRangeX");
+        specialMapper.add("currentLocalRangeY");
+        specialMapper.add("currentLocalRangeZ");
+
+        specialMapper.add("currentRangeX");
+        specialMapper.add("currentRangeY");
+        specialMapper.add("currentRangeZ");
+
+        specialMapper.add("synchronize");
+
         // Garbage
         replacement.put("valueOf", "");
         replacement.put("floatValue", "");
@@ -256,11 +285,11 @@ public final class CudaTranspiler extends JParserBaseListener implements Transpi
                 this.sb.append("\n").append("__global__");
             }
             else {
-                this.sb.append("\n").append("__device__ ");
+                this.sb.append("\n").append("__device__ inline");
             }
 
             // Header
-            this.sb.append("\n");
+            this.sb.append(" ");
 
             // Return Type
             String rawRet = ctx.methodHeader().result().getText();
@@ -301,7 +330,6 @@ public final class CudaTranspiler extends JParserBaseListener implements Transpi
         }
         catch (TranspileException e) {
             this.e = e;
-            e.printStackTrace();
         }
     }
 
@@ -544,7 +572,7 @@ public final class CudaTranspiler extends JParserBaseListener implements Transpi
 
                 this.sb.append(rep);
 
-                if ("synchronize".equals(ctx.identifier().getText())) {
+                if (specialMapper.contains(ctx.identifier().getText())) {
                     return;
                 }
             }
@@ -686,7 +714,7 @@ public final class CudaTranspiler extends JParserBaseListener implements Transpi
             this.sb.append("return ");
 
             if (ctx.returnStatement().expression() != null) {
-                this.sb.append(ctx.returnStatement().expression().getText());
+                visitExpression(ctx.returnStatement().expression());
             }
             this.sb.append(";\n");
         }

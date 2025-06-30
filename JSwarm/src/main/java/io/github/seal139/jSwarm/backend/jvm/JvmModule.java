@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import io.github.seal139.jSwarm.backend.BackendException;
 import io.github.seal139.jSwarm.backend.Kernel;
@@ -16,14 +17,14 @@ public class JvmModule implements Module {
 
     private final Map<String, JvmKernel> kernelMap = new HashMap<>();
 
-    JvmModule(Class<? extends Program> program) {
+    JvmModule(Class<? extends Program> program, Set<String> syncedMethod) throws JvmException {
         final Method[]         methods = program.getDeclaredMethods();
         final Constructor<?>[] constrs = program.getDeclaredConstructors();
 
         Constructor<?> constructor = null;
 
         for (Constructor<?> constr : constrs) {
-            if (constr.getParameterCount() == 19) {
+            if (constr.getParameterCount() == 0) {
                 constructor = constr;
                 break;
             }
@@ -42,9 +43,8 @@ public class JvmModule implements Module {
                 continue;
             }
 
-            this.kernelMap.put(method.getName(), new JvmKernel(constructor, method));
+            this.kernelMap.put(method.getName(), new JvmKernel(constructor, method, syncedMethod.contains(method.getName())));
         }
-
     }
 
     @Override

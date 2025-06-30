@@ -6,14 +6,12 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import io.github.seal139.jSwarm.backend.Transpiler;
-
 /**
  * This class provides an empty implementation of {@link JParserListener}, which
  * can be extended to create a listener which only needs to handle a subset of
  * the available methods.
  */
-public abstract class JParserBaseListener implements JParserListener, Transpiler {
+public abstract class JParserBaseListener implements JParserListener {
     /**
      * {@inheritDoc}
      *

@@ -18,6 +18,7 @@ import org.benf.cfr.reader.api.CfrDriver;
 import org.benf.cfr.reader.api.OutputSinkFactory;
 
 import io.github.seal139.jSwarm.backend.BackendException;
+import io.github.seal139.jSwarm.backend.Transpiler;
 import io.github.seal139.jSwarm.runtime.Program;
 import io.github.seal139.jSwarm.runtime.TranspileException;
 
@@ -79,7 +80,7 @@ public final class Decompiler {
 
     private static final CfrDriver decompilerDriver = new CfrDriver.Builder().withOutputSink(JDecompiler.getInstance()).build();
 
-    public static String process(JParserBaseListener transpiler, Class<? extends Program> cls) throws BackendException, IOException {
+    public static String process(Transpiler transpiler, Class<? extends Program> cls) throws BackendException, IOException {
         final StringBuilder sb = new StringBuilder();
 
         decompile(sb, cls);
@@ -88,7 +89,7 @@ public final class Decompiler {
     }
 
     @SuppressWarnings("unchecked")
-    public static String process(JParserBaseListener transpiler, Class<? extends Program>... clss) throws BackendException, IOException {
+    public static String process(Transpiler transpiler, Class<? extends Program>... clss) throws BackendException, IOException {
         final StringBuilder sb = new StringBuilder("");
 
         for (Class<? extends Program> cls : clss) {
@@ -98,7 +99,7 @@ public final class Decompiler {
         return buildAst(sb.toString(), transpiler);
     }
 
-    public static String process(JParserBaseListener transpiler, Collection<Class<? extends Program>> clss) throws BackendException, IOException {
+    public static String process(Transpiler transpiler, Collection<Class<? extends Program>> clss) throws BackendException, IOException {
         final StringBuilder sb = new StringBuilder("");
 
         for (Class<? extends Program> cls : clss) {
@@ -135,7 +136,7 @@ public final class Decompiler {
         }
     }
 
-    protected static String buildAst(String source, JParserBaseListener transpiler) throws TranspileException {
+    protected static String buildAst(String source, Transpiler transpiler) throws TranspileException {
         JLexer java20Lexer = new JLexer(CharStreams.fromString(source));
 
         CommonTokenStream tokens = new CommonTokenStream(java20Lexer);

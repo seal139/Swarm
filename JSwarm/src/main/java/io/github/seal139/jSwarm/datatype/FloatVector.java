@@ -9,6 +9,8 @@ import java.util.ListIterator;
  */
 public final class FloatVector extends Vector<Float> {
 
+    private static final long serialVersionUID = 3239625231594541451L;
+
     private static final long WORD_SIZE  = 4;
     private static final long SHIFT_SIZE = 2;
 

@@ -13,4 +13,8 @@ public class JvmException extends BackendException {
         this.initCause(e.getCause());
     }
 
+    JvmException(String e) {
+        super(e);
+    }
+
 }
