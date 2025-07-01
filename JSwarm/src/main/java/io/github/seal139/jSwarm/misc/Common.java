@@ -26,16 +26,16 @@ public final class Common {
         /* Check OS */ {
             final String OS = System.getProperty("os.name").toLowerCase();
             if (OS.contains("win")) {
-                osName = "Windows";
+                osName = "windows";
             }
             else if (OS.contains("mac")) {
-                osName = "Mac";
+                osName = "mac";
             }
             else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
-                osName = "Unix";
+                osName = "unix";
             }
             else {
-                osName = "Unknown";
+                osName = "unknown";
             }
         }
 
