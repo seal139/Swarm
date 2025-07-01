@@ -1,10 +1,37 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.seal139</groupId>
-  <artifactId>jSwarm</artifactId>
-  <version>1.0.1-SNAPSHOT</version>
-  <name>JSwarm</name>
+  <artifactId>Swarm</artifactId>
+  <version>1.0.1</version>
+  <name>Swarm</name>
   <description>Java integrated framework for parallel computing</description>
+
+
+
+	<properties>
+  		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  		<maven.compiler.release>17</maven.compiler.release>
+  	</properties>
+  	
+  	<licenses>
+		  <license>
+		    <name>GNU GENERAL PUBLIC LICENSE, version 2</name>
+		    <url>https://www.gnu.org/licenses/old-licenses/gpl-2.0.html#SEC1</url>
+		  </license>
+	</licenses>
+	
+	 <developers>
+	    <developer>
+	      <name>Septian Pramana</name>
+	      <email>septian13.ian@gmail.com</email>
+	    </developer>
+	  </developers>
+	  
+  	<scm>
+	  <connection>scm:git:git://github.com/seal139/Swarm.git</connection>
+	  <developerConnection>scm:git:ssh://github.com:seal139/Swarm.git</developerConnection>
+	  <url>https://github.com/seal139/Swarm/tree/main</url>
+	</scm>
 
 
 <build>
@@ -65,12 +92,6 @@
 	    <artifactId>commons-math3</artifactId>
 	    <version>3.6.1</version>
 	</dependency>
-	
-
 </dependencies>
-
-
-
-
 
 </project>
