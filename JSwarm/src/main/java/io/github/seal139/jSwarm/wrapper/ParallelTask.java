@@ -1,3 +1,22 @@
+/*
+* Swarm - An Extensible and Modular GPGPU framework
+* Copyright (C) 2025  Septian Pramana / Mercu Buana University
+*
+* This file is part of Swarm.
+*
+* Swarm is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2.
+*
+* Swarm is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package io.github.seal139.jSwarm.wrapper;
 
 import java.io.Closeable;
@@ -21,25 +40,19 @@ import io.github.seal139.jSwarm.runtime.NdRange;
 import io.github.seal139.jSwarm.runtime.Program;
 import io.github.seal139.jSwarm.runtime.SyncDirection;
 
+/**
+ * Entry point for GPGPU boilerplate code
+ */
 public class ParallelTask {
-
-    // /*
-    // * ParallelTask
-    // * .from(Class<? extends Program> kernelCode)
-    // *
-    // * // Will handle load balancer in the future
-    // * .atPlatform(Platform platform)
-    // * or
-    // * .atAnyPlatform()
-    // * =================
-    // *
-    // * .withData(Vector<? extends Number> ... vars)
-    // * .execute(String kernelName, NdRange range)
-    // * .fetchData()
-    // */
 
     // =================
 
+    /**
+     * Load kernel code from Class
+     *
+     * @param kernelCode
+     * @return
+     */
     public static ProgramLoader from(Class<? extends Program> kernelCode) {
         return new ProgramLoader(kernelCode);
     }
