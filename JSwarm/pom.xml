@@ -4,7 +4,7 @@
   <artifactId>Swarm</artifactId>
   <version>1.0.2</version>
   <name>Swarm</name>
-  <description>Java integrated framework for parallel computing</description>
+  <description>A modular and extensible GPGPU framework for Java that unifies several platform backends, with support for runtime kernel transpilation and SIMT emulation.</description>
   <url>https://github.com/seal139/Swarm</url>
 
   <properties>
@@ -14,8 +14,8 @@
       
   <licenses>
     <license>
-      <name>GNU GENERAL PUBLIC LICENSE, version 2</name>
-      <url>https://www.gnu.org/licenses/old-licenses/gpl-2.0.html#SEC1</url>
+      <name>GNU General Public License, Version 2</name>
+      <url>https://www.gnu.org/licenses/old-licenses/gpl-2.0.html</url>
     </license>
   </licenses>
     
@@ -23,7 +23,7 @@
     <developer>
       <name>Septian Pramana</name>
       <email>septian13.ian@gmail.com</email>
-      <organization>Universitas Mercubuana</organization>
+      <organization>Mercu Buana University</organization>
       <organizationUrl>https://mercubuana.ac.id/</organizationUrl>
     </developer>
   </developers>
@@ -51,9 +51,9 @@
         </configuration>
       </plugin>
         
-      <plugin>
+      <!--<plugin>
         <groupId>org.antlr</groupId>
-        <artifactId>antlr4-maven-plugin</artifactId>
+        <artifactId>`4-maven-plugin</artifactId>
         <version>4.13.2</version>
         <executions>
           <execution>
@@ -62,7 +62,7 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
+      </plugin>-->
         
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -142,11 +142,17 @@
     </dependency>
     
     <!-- https://mvnrepository.com/artifact/org.antlr/antlr4 -->
-    <dependency>
+<!--    <dependency>
       <groupId>org.antlr</groupId>
       <artifactId>antlr4</artifactId>
       <version>4.13.2</version>
-    </dependency>
+    </dependency>-->
+    
+    <dependency>
+	  <groupId>org.antlr</groupId>
+	  <artifactId>antlr4-runtime</artifactId>
+	  <version>4.13.2</version> <!-- must match the version used to generate the parser -->
+	</dependency>
 
     <!-- https://mvnrepository.com/artifact/org.apache.commons/commons-math3 -->
     <dependency>

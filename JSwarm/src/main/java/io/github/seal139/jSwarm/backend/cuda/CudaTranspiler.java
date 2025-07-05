@@ -572,11 +572,11 @@ public final class CudaTranspiler extends Transpiler {
 
         int getset = 0;
 
-        if ((ctx.primary() != null //
-        ) && (ctx.primary().primaryNoNewArray().expressionName() == null //
-        ) && (ctx.primary().primaryNoNewArray().expression() != null)) {
-            visitExpression(ctx.primary().primaryNoNewArray().expression());
-            return;
+        if ((ctx.primary() != null) && (ctx.primary().primaryNoNewArray() != null)) {
+            if (!"this".equals(ctx.primary().getText())) {
+                visitPrimaryNoNewArray(ctx.primary().primaryNoNewArray());
+                return;
+            }
         }
 
         if (ctx.identifier() != null) {
