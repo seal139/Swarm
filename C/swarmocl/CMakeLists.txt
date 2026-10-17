@@ -1,5 +1,6 @@
 ﻿# CMakeList.txt : Top-level CMake project file, do global configuration
 # and include sub-projects here.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 cmake_minimum_required (VERSION 3.18)
 
