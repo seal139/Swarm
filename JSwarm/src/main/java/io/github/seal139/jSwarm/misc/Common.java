@@ -38,23 +38,29 @@ public final class Common {
     private static final ForkJoinPool w = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
 
     private static final String          osName;
+    private static final String extension;
+    
     private static final boolean         debug;
     private static final sun.misc.Unsafe memory;
-
+    
     static {
         /* Check OS */ {
             final String OS = System.getProperty("os.name").toLowerCase();
             if (OS.contains("win")) {
-                osName = "windows";
+                osName    = "windows";
+                extension = ".dll";
             }
             else if (OS.contains("mac")) {
-                osName = "mac";
+                osName    = "mac";
+                extension = ".dylib";
             }
             else if (OS.contains("nix") || OS.contains("nux") || OS.contains("aix")) {
-                osName = "unix";
+                osName    = "unix";
+                extension = ".so";
             }
             else {
-                osName = "unknown";
+                osName    = "unknown";
+                extension = "";
             }
         }
 
