@@ -1,338 +1,493 @@
+#include <cstddef>
+#include <cstdio>
 #include <vector>
-#include <string>
 
-#include <cuda.h>
-#include <nvrtc.h>
+#include "../header/struct_header.h"
 
-#include "../header/jni.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 using namespace std;
 
-    JNIEXPORT jstring JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaGetVersion
-    (JNIEnv* env, jclass clazz) {
-        cuInit(0);
-        
-        int version = 0;
-        CUresult err = cuDriverGetVersion(&version);
+/**
+ * Initialize CUDA and return driver version
+ */
+cu_driver_info cu_init() {
+  cu_driver_info ret;
+  ret.err_code = cuInit(0);
 
-        if (err != CUDA_SUCCESS) {
-            return env->NewStringUTF("Error");
-        }
+  if (ret.err_code != CUDA_SUCCESS) {
+    return ret;
+  }
 
-        // Convert version to string (e.g., "12.3")
-        int major = version / 1000;
-        int minor = (version % 1000) / 10;
-        std::string versionStr = std::to_string(major) + "." + std::to_string(minor);
+  int version;
+  ret.err_code = cuDriverGetVersion(&version);
 
-        return env->NewStringUTF(versionStr.c_str());
+  if (ret.err_code != CUDA_SUCCESS) {
+    return ret;
+  }
+
+  ret.major = version / 1000;
+  ret.minor = (version % 1000) / 10;
+
+  return ret;
+}
+
+/**
+ * Get device count
+ */
+cu_devices cu_get_device_count() {
+  cu_devices ret;
+  ret.err_code = cuDeviceGetCount(&ret.device_count);
+
+  return ret;
+}
+
+/**
+ * Get device info based on device index
+ */
+cu_device_info cu_get_device_info(int device_idx) {
+  cu_device_info info;
+
+  // Select device
+
+  info.err_code = cuDeviceGet(&info.device, device_idx);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  CUdevice dev = info.device;
+
+  // Name
+  info.device_idx = device_idx;
+  info.err_code = cuDeviceGetName(info.name, sizeof(info.name), dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // UUID
+  info.err_code = cuDeviceGetUuid(&info.uuid, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Major - Minor
+  info.err_code = cuDeviceGetAttribute(
+      &info.major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Total global memory
+  info.err_code = cuDeviceTotalMem(&info.total_memory, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Clock and memory specs
+  info.err_code = cuDeviceGetAttribute(&info.clock_rate,
+                                       CU_DEVICE_ATTRIBUTE_CLOCK_RATE, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.memory_clock_rate, CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.memory_bus_width, CU_DEVICE_ATTRIBUTE_GLOBAL_MEMORY_BUS_WIDTH, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(&info.l2_cache_size,
+                                       CU_DEVICE_ATTRIBUTE_L2_CACHE_SIZE, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Multiprocessor & Warp execution specs
+  info.err_code = cuDeviceGetAttribute(
+      &info.compute_unit, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code =
+      cuDeviceGetAttribute(&info.max_thread_per_block,
+                           CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code =
+      cuDeviceGetAttribute(&info.warp_size, CU_DEVICE_ATTRIBUTE_WARP_SIZE, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.max_shared_memory_per_block,
+      CU_DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Concurrency & Async features
+  info.err_code = cuDeviceGetAttribute(
+      &info.concurrent_kernels, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.async_engine_count, CU_DEVICE_ATTRIBUTE_ASYNC_ENGINE_COUNT, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Grid (Global NDRange) limits
+  info.err_code = cuDeviceGetAttribute(&info.max_global_ndrange_x,
+                                       CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(&info.max_global_ndrange_y,
+                                       CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(&info.max_global_ndrange_z,
+                                       CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  // Block (Local NDRange) limits
+  info.err_code = cuDeviceGetAttribute(
+      &info.max_local_ndrange_x, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.max_local_ndrange_y, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  info.err_code = cuDeviceGetAttribute(
+      &info.max_local_ndrange_z, CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z, dev);
+  if (info.err_code != CUDA_SUCCESS) {
+    return info;
+  }
+
+  int uva_supported = 0;
+  info.err_code = cuDeviceGetAttribute(
+      &uva_supported, CU_DEVICE_ATTRIBUTE_UNIFIED_ADDRESSING, dev);
+  info.support_uva = (bool)uva_supported;
+
+  return info;
+}
+
+/**
+ * Create context along with 4 default executors.
+ */
+cu_ctx cu_create_context(CUdevice device) {
+  cu_ctx ret;
+
+  // Create context
+  ret.err_code = cuCtxCreate(&ret.context, nullptr, CU_CTX_SCHED_YIELD, device);
+  if (ret.err_code != CUDA_SUCCESS) {
+    return ret;
+  }
+
+  // Create executor for D2H memcpy
+  ret.err_code =
+      cuStreamCreate(&ret.exec_to_host_mem_cpy, CU_STREAM_NON_BLOCKING);
+  if (ret.err_code != CUDA_SUCCESS) {
+
+    // Deallocate on error
+    cuCtxDestroy(ret.context);
+
+    return ret;
+  }
+
+  // Create executor for H2D memcpy
+  ret.err_code =
+      cuStreamCreate(&ret.exec_to_device_mem_cpy, CU_STREAM_NON_BLOCKING);
+  if (ret.err_code != CUDA_SUCCESS) {
+
+    // Deallocate on error
+    cuStreamDestroy(ret.exec_to_host_mem_cpy);
+    cuCtxDestroy(ret.context);
+
+    return ret;
+  }
+
+  // Create executor for kernel
+  ret.err_code = cuStreamCreate(&ret.exec_kernel, CU_STREAM_NON_BLOCKING);
+  if (ret.err_code != CUDA_SUCCESS) {
+
+    // Deallocate on error
+    cuStreamDestroy(ret.exec_to_host_mem_cpy);
+    cuStreamDestroy(ret.exec_to_device_mem_cpy);
+    cuCtxDestroy(ret.context);
+
+    return ret;
+  }
+
+  // Create extra executor
+  ret.err_code = cuStreamCreate(&ret.exec_extra, CU_STREAM_NON_BLOCKING);
+  if (ret.err_code != CUDA_SUCCESS) {
+
+    // Deallocate on error
+    cuStreamDestroy(ret.exec_to_host_mem_cpy);
+    cuStreamDestroy(ret.exec_to_device_mem_cpy);
+    cuStreamDestroy(ret.exec_kernel);
+    cuCtxDestroy(ret.context);
+
+    return ret;
+  }
+
+  ret.err_code = CUDA_SUCCESS;
+  return ret;
+}
+
+/**
+ * Delete context
+ */
+CUresult cu_delete_context(CUcontext context) { return cuCtxDestroy(context); }
+
+/**
+ * Delete multiple context
+ */
+CUresult cu_delete_contexts(CUcontext *contexts, int count) {
+  CUresult err = CUDA_SUCCESS;
+
+  for (int i = 0; i < count; i++) {
+    CUresult lerr = cuCtxDestroy(contexts[i]);
+
+    if (lerr != CUDA_SUCCESS) {
+      err = lerr;
     }
+  }
 
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaEnumerateDevices
-    (JNIEnv*, jclass) {
+  return err;
+}
 
-        int deviceCount = 0;
-        CUresult err = cuDeviceGetCount(&deviceCount);
-        if (err != CUDA_SUCCESS) {
-            jint* ret = new jint[1];
-            ret[0] = err;
+/**
+ * Set active contex at current thread. Context must be set before begin
+ * operation
+ */
+CUresult cu_set_active_context(CUcontext context) {
+  return cuCtxSetCurrent(context);
+}
 
-            return reinterpret_cast<jlong>(ret);
-        }
+/**
+ * Create extra executor at current context
+ */
+cu_executor cu_add_executor() {
+  cu_executor ret;
 
-        // 0 -> Error code
-        // 1 -> Device count
-        // 2 ~ -> Pointer
-        jint* ret = new jint[2 + deviceCount];
-        //cudaDeviceProp* deviceProps = new cudaDeviceProp[deviceCount];
+  ret.err_code = cuStreamCreate(&ret.stream, CU_STREAM_NON_BLOCKING);
+  return ret;
+}
 
-        ret[0] = 0;           // Store error code
-        ret[1] = deviceCount; // Store device count
+CUresult cu_delete_executor(CUstream stream) { return cuStreamDestroy(stream); }
 
-        for (int i = 0; i < deviceCount; ++i) {
-            //cudaGetDeviceProperties(&deviceProps[i], i);
-            CUdevice device;
-            ret[0] = cuDeviceGet(&device, i);
-            if (ret[0] == CUDA_SUCCESS) {
-                ret[2 + i] = static_cast<jint>(device);
-            }
-            else {
-                break;
-            }
-        }
+CUresult cu_delete_executors(CUstream *streams, int count) {
+  CUresult err = CUDA_SUCCESS;
 
-        return reinterpret_cast<jlong>(ret);
+  for (int i = 0; i < count; i++) {
+    CUresult lerr = cuStreamDestroy(streams[i]);
+
+    if (lerr != CUDA_SUCCESS) {
+      err = lerr;
     }
+  }
 
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaGetDeviceInfo
-    (JNIEnv*, jclass, jint device) {
-        jlong* properties = new jlong[12];
+  return err;
+}
 
-        // 0 Compute unit
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[0]), CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device);
-
-        // 1 Global Memory
-        cuDeviceTotalMem(reinterpret_cast<size_t*>(&properties[1]), device);
-
-        // 2 Global Range -X, Y, Z
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[2]), CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_X, device);
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[3]), CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Y, device);
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[4]), CU_DEVICE_ATTRIBUTE_MAX_GRID_DIM_Z, device);
-
-        // 3 Local Range -X, Y, Z
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[5]), CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_X, device);
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[6]), CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Y, device);
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[7]), CU_DEVICE_ATTRIBUTE_MAX_BLOCK_DIM_Z, device);
-
-        // 3 Thread per block
-        cuDeviceGetAttribute(reinterpret_cast<int*>(&properties[8]), CU_DEVICE_ATTRIBUTE_MAX_THREADS_PER_BLOCK, device);
-
-        int clockRate, coresPerSM;
-        cuDeviceGetAttribute(&clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, device); // Clock rate in kHz
-        cuDeviceGetAttribute(&coresPerSM, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, device); // Compute unit count
-
-        int major, minor;
-        cuDeviceGetAttribute(&major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, device);
-        cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, device);
-
-        if (major == 1) coresPerSM *= 8;   // Tesla
-        else if (major == 2) coresPerSM *= 32;  // Fermi
-        else if (major == 3) coresPerSM *= 192; // Kepler
-        else if (major == 5) coresPerSM *= 128; // Maxwell
-        else if (major == 6) coresPerSM *= (minor == 0) ? 64 : 128; // Pascal
-        else if (major == 7) coresPerSM *= (minor == 0) ? 64 : 128; // Volta/Turing
-        else if (major >= 8) coresPerSM *= 128; // Ampere
-        //else if (major == 9) coresPerSM *= 128; // Hopper
-
-        // 4 FLOPS
-        properties[9] = static_cast<jlong>((2 * coresPerSM * ((float)clockRate / 1000000.0))); // GFLOPS estimate
-
-        // 5 UUID
-        cuDeviceGetUuid(reinterpret_cast<CUuuid*>(&properties[10]), device);
-
-        return reinterpret_cast<jlong>(properties);
-    }
-
-    JNIEXPORT jstring JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaGetDeviceName
-    (JNIEnv* env, jclass clazz, jint deviceId) {
-        CUdevice device;
-        char name[256]; // Buffer for device name
-
-        // Get the device handle
-        if (cuDeviceGet(&device, deviceId) != CUDA_SUCCESS) {
-            return env->NewStringUTF("Error");
-        }
-
-        // Get the device name
-        if (cuDeviceGetName(name, 256, device) != CUDA_SUCCESS) {
-            return env->NewStringUTF("Error");
-        }
-
-        return env->NewStringUTF(name);
-    }
-
-
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaCreateContext
-    (JNIEnv*, jclass, jint device) {
-        // 0   -> Error code
-        // 1   -> Context
-        // 2-5 -> Queue (stream)
-        jlong* ret = new jlong[6];;
-        ret[0] = 0;
-
-        CUcontext* context = reinterpret_cast<CUcontext*>(&ret[1]);
-        ret[0] = cuCtxCreate(context, CU_CTX_SCHED_SPIN, static_cast<CUdevice>(device));
-        if (ret[0] != CUDA_SUCCESS) {
-            return reinterpret_cast<jlong>(ret);
-        }
-
-        cuCtxSetCurrent(*context);
-
-        for (int i = 0; i < 4; i++) {
-            ret[0] = cuStreamCreate(reinterpret_cast<CUstream*>(&ret[2 + i]), CU_STREAM_NON_BLOCKING);
-
-            if (ret[0] == CUDA_SUCCESS) {
-                continue;
-            }
-
-            for (int l = 0; l < i; l++) {
-                cuStreamDestroy(reinterpret_cast<CUstream>(ret[2 + l]));
-            }
-
-            cuCtxDestroy(*context);
-            break;
-        }
-
-        return reinterpret_cast<jlong>(ret);
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaDeleteContext
-    (JNIEnv*, jclass, jlong context) {
-        return cuCtxDestroy(reinterpret_cast<CUcontext>(context));
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaSetContext
-    (JNIEnv*, jclass, jlong context) {
-        return cuCtxSetCurrent(reinterpret_cast<CUcontext>(context));        
-    }
-
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaAddQueue
-    (JNIEnv*, jclass, jint count) {
-        // 0 Error
-        // 1 ~ Stream ptr
-        jlong* ret = new jlong[count + 1];
-        ret[0] = 0;
-
-        for (int i = 0; i < count; i++) {
-            ret[0] = cuStreamCreate(reinterpret_cast<CUstream*>(&ret[1 + i]), CU_STREAM_NON_BLOCKING);
-
-            if (ret[0] == CUDA_SUCCESS) {
-                continue;
-            }
-
-            for (int l = 0; l < i; l++) {
-                cuStreamDestroy(reinterpret_cast<CUstream>(ret[1 + l]));
-            }
-
-            break;
-        }
-
-        return reinterpret_cast<jlong>(ret);
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaDeleteQueue
-    (JNIEnv* env, jclass clazz, jlongArray jQueue, jint count) {
-        jlong* elements = env->GetLongArrayElements(jQueue, nullptr);
-
-        CUresult err = CUDA_SUCCESS;
-        for (int i = 0; i < count; i++) {
-            CUresult lerr = cuStreamDestroy(reinterpret_cast<CUstream>(elements[i]));
-
-            if (lerr != CUDA_SUCCESS) {
-                err = lerr;;
-            }
-        }
-
-        env->ReleaseLongArrayElements(jQueue, elements, JNI_ABORT);
-        return err;
-    }
-
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaCreateProgram
-    (JNIEnv* env, jclass clazz, jstring jsrc) {
-        const char* src = env->GetStringUTFChars(jsrc, nullptr);
-
-        jlong* ret = new jlong[2];
-        ret[0] = 0;
-
-        nvrtcProgram prog;
-        nvrtcResult err = nvrtcCreateProgram(&prog, src, "kernel.cu", 0, nullptr, nullptr);
-        env->ReleaseStringUTFChars(jsrc, src);
-
-        if (err != NVRTC_SUCCESS) {
-            ret[0] = CUDA_ERROR_INVALID_SOURCE;
-            return reinterpret_cast<jlong>(ret);
-        }
-
-        err = nvrtcCompileProgram(prog, 0, nullptr);
-        if (err != NVRTC_SUCCESS) {
-            ret[0] = CUDA_ERROR_INVALID_SOURCE;
-
-            nvrtcDestroyProgram(&prog);
-            return reinterpret_cast<jlong>(ret);
-        }
-
-        size_t ptxSize;
-        err = nvrtcGetPTXSize(prog, &ptxSize);
-        if (err != NVRTC_SUCCESS) {
-            ret[0] = CUDA_ERROR_INVALID_PTX;
-
-            nvrtcDestroyProgram(&prog);
-            return reinterpret_cast<jlong>(ret);
-        }
-
-        vector<char> ptx(ptxSize);
-        err = nvrtcGetPTX(prog, ptx.data());
-        if (err != NVRTC_SUCCESS) {
-            ret[0] = CUDA_ERROR_INVALID_PTX;
-
-            nvrtcDestroyProgram(&prog);
-            return reinterpret_cast<jlong>(ret);
-        }
-
-        nvrtcDestroyProgram(&prog);
-
-        ret[0] = cuModuleLoadData(reinterpret_cast<CUmodule*>(&ret[1]), ptx.data());
-
-        return reinterpret_cast<jlong>(ret);
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaDeleteProgram
-    (JNIEnv*, jclass, jlong program) {
-        return cuModuleUnload(reinterpret_cast<CUmodule>(program));
-    }
-
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaGetKernel
-    (JNIEnv* env, jclass, jlong program, jstring jkName) {
-        jlong* ret = new jlong[2];
-        ret[0] = 0;
-
-        const char* kernelName = env->GetStringUTFChars(jkName, nullptr);
-        ret[0] = cuModuleGetFunction(reinterpret_cast<CUfunction*>(&ret[1]), reinterpret_cast<CUmodule>(program), kernelName);
-        env->ReleaseStringUTFChars(jkName, kernelName);
-
-        return reinterpret_cast<jlong>(ret);
-    }
-
-    JNIEXPORT void JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaLaunch
-    (JNIEnv* env, jclass,
-        jlong kernel, jlong queue,
-        jint x, jint y, jint z,
-        jint lx, jint ly, jint lz,
-        jlongArray arguments, jint count) {
-       
-        jlong* elements = env->GetLongArrayElements(arguments, nullptr);
-        void** args = new void*[count];
-        for (int i = 0; i < count; i++) {
-            args[i] = reinterpret_cast<void*>(&elements[i]);
-        }
-
-        cuLaunchKernel(
-            reinterpret_cast<CUfunction>(kernel),
-            x, y, z,       // Grid dimensions
-            lx, ly, lz,    // Block dimensions
-            0,             // Shared Memory - Currently unavailable
-            reinterpret_cast<CUstream>(queue),
-            args,
-            0);
-
-        delete[] args;
-        env->ReleaseLongArrayElements(arguments, elements, JNI_ABORT);
-    }
-
-    JNIEXPORT jlong JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaHook
-    (JNIEnv*, jclass, jlong size) {
-
-        jlong* ret = new jlong[2];
-        ret[0] = cuMemAlloc(reinterpret_cast<CUdeviceptr*>(&ret[1]), size);
-
-        return reinterpret_cast<jlong>(ret);
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaSyncDataTo
-    (JNIEnv*, jclass, jlong queue, jlong hostMemory, jlong deviceMemory, jlong size) {
-        return cuMemcpyHtoDAsync(static_cast<CUdeviceptr>(deviceMemory), reinterpret_cast<void*>(hostMemory), size, reinterpret_cast<CUstream>(queue));
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaSyncDataFrom
-    (JNIEnv*, jclass, jlong queue, jlong hostMemory, jlong deviceMemory, jlong size) {
-        return cuMemcpyDtoHAsync(reinterpret_cast<void*>(hostMemory), static_cast<CUdeviceptr>(deviceMemory), size, reinterpret_cast<CUstream>(queue));
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaUnhook
-    (JNIEnv*, jclass, jlong deviceMemory) {
-        return cuMemFree(static_cast<CUdeviceptr>(deviceMemory));
-    }
-
-    JNIEXPORT jint JNICALL Java_io_github_seal139_jSwarm_backend_cuda_CudaDriver_cudaWaitAll
-    (JNIEnv* env, jclass) {
-        return cuCtxSynchronize();
-    }
+cu_program cu_create_program(const char *source, int dev_major, int dev_minor) {
+  cu_program ret;
+
+  nvrtcProgram prog;
+
+  ret.compiler_err_code =
+      nvrtcCreateProgram(&prog, source, "kernel.cu", 0, nullptr, nullptr);
+  if (ret.compiler_err_code != NVRTC_SUCCESS) {
+    return ret;
+  }
+
+  char arch_opt[32];
+  snprintf(arch_opt, sizeof(arch_opt), "-arch=compute_%d%d", dev_major,
+           dev_minor);
+  const char *opts[] = {arch_opt};
+
+  ret.compiler_err_code = nvrtcCompileProgram(prog, 1, opts);
+  if (ret.compiler_err_code != NVRTC_SUCCESS) {
+    // Check for compilation error here
+    // size_t logSize;
+    // nvrtcGetProgramLogSize(prog, &logSize);
+
+    // vector<char> log(logSize);
+    // nvrtcGetProgramLog(prog, log.data());
+
+    // ret.compiler_err_code = NVRTC_ERROR_COMPILATION;
+
+    nvrtcDestroyProgram(&prog);
+
+    return ret;
+  }
+
+  // ======
+
+  size_t ptxSize;
+  ret.compiler_err_code = nvrtcGetPTXSize(prog, &ptxSize);
+  if (ret.compiler_err_code != NVRTC_SUCCESS) {
+    nvrtcDestroyProgram(&prog);
+
+    return ret;
+  }
+
+  vector<char> ptx(ptxSize);
+  ret.compiler_err_code = nvrtcGetPTX(prog, ptx.data());
+
+  nvrtcDestroyProgram(&prog);
+  if (ret.compiler_err_code != NVRTC_SUCCESS) {
+    return ret;
+  }
+
+  ret.err_code = cuModuleLoadData(&ret.module, ptx.data());
+
+  return ret;
+}
+
+CUresult cu_delete_program(CUmodule program) { return cuModuleUnload(program); }
+
+cu_kernel cu_get_kernel(CUmodule program, const char *name) {
+  cu_kernel ret;
+
+  ret.err_code = cuModuleGetFunction(&ret.function, program, name);
+  return ret;
+}
+
+CUresult cu_launch(CUfunction kernel, CUstream exec_kernel,        //
+                   int gx, int gy, int gz, int lx, int ly, int lz, //
+                   void **args) {
+
+  return cuLaunchKernel(kernel,     //
+                        gx, gy, gz, // Grid dimensions
+                        lx, ly, lz, // Block dimensions
+                        0,          // Shared Memory - Currently unavailable
+                        exec_kernel, args, 0);
+}
+
+// Zero Copy Memory
+
+// High speed memory
+// Host Memory <--> Device Memory
+// cu_allocate_host <h2d -- d2h> cu_allocate
+
+CUresult cu_deallocate_device(CUdeviceptr pointer) {
+  return cuMemFree(pointer);
+}
+
+cu_device_mem_ptr cu_allocate_device(size_t size) {
+  cu_device_mem_ptr ret;
+
+  ret.err_code = cuMemAlloc(&ret.pointer, size);
+
+  return ret;
+}
+
+cu_device_mem_ptr cu_allocate_device_managed(size_t size) {
+
+  cu_device_mem_ptr ret;
+
+  ret.err_code = cuMemAllocManaged(&ret.pointer, size, CU_MEM_ATTACH_GLOBAL);
+
+  return ret;
+}
+
+cu_host_mem_ptr cu_allocate_host(size_t size, bool write_optimized) {
+  cu_host_mem_ptr ret;
+
+  int flag = CU_MEMHOSTALLOC_PORTABLE;
+  if (write_optimized) {
+    flag |= CU_MEMHOSTALLOC_WRITECOMBINED;
+  }
+
+  ret.err_code = cuMemHostAlloc(&ret.pointer, size, flag);
+
+  return ret;
+}
+
+cu_host_mem_ptr cu_allocate_host_mapped(size_t size, bool write_optimized) {
+  cu_host_mem_ptr ret;
+
+  int flag = CU_MEMHOSTALLOC_PORTABLE | CU_MEMHOSTALLOC_DEVICEMAP;
+  if (write_optimized) {
+    flag |= CU_MEMHOSTALLOC_WRITECOMBINED;
+  }
+
+  ret.err_code = cuMemHostAlloc(&ret.pointer, size, flag);
+
+  if (ret.err_code != CUDA_SUCCESS) {
+    return ret;
+  }
+
+  return ret;
+}
+
+cu_device_mem_ptr cu_allocate_device_mapped(void *host_pointer) {
+  cu_device_mem_ptr ret;
+
+  ret.err_code = cuMemHostGetDevicePointer(&ret.pointer, host_pointer, 0);
+
+  return ret;
+}
+
+CUresult cu_deallocate_host(void *host_ptr) { return cuMemFreeHost(host_ptr); }
+
+CUresult cu_copy_host_to_device(CUstream exec_to_device_mem_cpy,
+                                const void *host_ptr, CUdeviceptr device_ptr,
+                                size_t size) {
+
+  return cuMemcpyHtoDAsync(device_ptr, host_ptr, size, exec_to_device_mem_cpy);
+}
+
+CUresult cu_copy_device_to_host(CUstream exec_to_host_mem_cpy,
+                                CUdeviceptr device_ptr, void *host_ptr,
+                                size_t size) {
+
+  return cuMemcpyDtoHAsync(host_ptr, device_ptr, size, exec_to_host_mem_cpy);
+}
+
+// ======================================
+
+CUresult cu_is_executor_busy(CUstream stream) { return cuStreamQuery(stream); }
+
+CUresult cu_wait_executor(CUstream stream) {
+  return cuStreamSynchronize(stream);
+}
+
+CUresult cu_wait_all() { return cuCtxSynchronize(); }
+
+#ifdef __cplusplus
+}
+#endif
