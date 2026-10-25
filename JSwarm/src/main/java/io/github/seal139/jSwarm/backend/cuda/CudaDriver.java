@@ -120,8 +120,8 @@ final class CudaDriver {
     private static final int driverMajorVer;
     private static final int driverMinorVer;
 
-    private static final Arena        globalArena = Arena.global();
-    private static final Linker       linker      = Linker.nativeLinker();
+    private static final Arena        globalArena = Common.getGlobalArena();
+    private static final Linker       linker      = Common.getLinker();
     private static final SymbolLookup lib         = SymbolLookup.libraryLookup(Path.of(Common.getDriverByOs(PLATFORM, "libswarmcu")), globalArena);
 
     private final static Struct cu_devices = new StructBuilder() //

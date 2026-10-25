@@ -23,6 +23,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.foreign.Arena;
+import java.lang.foreign.Linker;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Field;
 import java.nio.ByteOrder;
@@ -37,12 +39,15 @@ import sun.misc.Unsafe;
 public final class Common {
     private static final ForkJoinPool w = new ForkJoinPool(Runtime.getRuntime().availableProcessors());
 
-    private static final String          osName;
+    private static final Arena  globalArena = Arena.global();
+    private static final Linker linker      = Linker.nativeLinker();
+
+    private static final String osName;
     private static final String extension;
-    
+
     private static final boolean         debug;
     private static final sun.misc.Unsafe memory;
-    
+
     static {
         /* Check OS */ {
             final String OS = System.getProperty("os.name").toLowerCase();
@@ -94,6 +99,10 @@ public final class Common {
         }
     }
 
+    public static Arena getGlobalArena() { return globalArena; }
+
+    public static Linker getLinker() { return linker; }
+
     public static sun.misc.Unsafe getMemoryManagement() { return memory; }
 
     public static <T> Future<T> queue(Callable<T> task) {
@@ -108,20 +117,25 @@ public final class Common {
 
     public static ByteOrder getEndianness() { return ByteOrder.nativeOrder(); }
 
-    public static String getDriverByOs(String platform, String name) throws IOException {
-        File f = File.createTempFile("swarm-", ".driver");
-        f.deleteOnExit();
+    public static String getDriverByOs(String platform, String name) throws ExceptionInInitializerError {
+        try {
+            File f = File.createTempFile("swarm-", ".driver");
+            f.deleteOnExit();
 
-        try (InputStream inputStream = Common.class.getResourceAsStream("/" + getOs() + "/" + name)) {
-            if (inputStream == null) {
-                f.delete();
-                throw new FileNotFoundException("No driver for " + platform + " found for this operating system");
+            try (InputStream inputStream = Common.class.getResourceAsStream("/" + getOs() + "/" + name + extension)) {
+                if (inputStream == null) {
+                    f.delete();
+                    throw new FileNotFoundException("No driver for " + platform + " found for this operating system");
+                }
+
+                Files.copy(inputStream, f.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
 
-            Files.copy(inputStream, f.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            return f.getAbsolutePath();
         }
-
-        return f.getAbsolutePath();
+        catch (IOException i) {
+            throw new ExceptionInInitializerError(i);
+        }
     }
 
     /**
