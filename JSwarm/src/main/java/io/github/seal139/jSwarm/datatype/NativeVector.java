@@ -197,9 +197,9 @@ public abstract class NativeVector<T extends Number> //
         final List<List<T>> retChunk = new ArrayList<>();
         for (long sequence = 0; sequence < chunkCount; sequence++) {
             long from = Integer.MAX_VALUE * sequence;
-            long to   = Math.min(size(), from + Integer.MAX_VALUE);
+            long to   = Math.min(size(), from + Integer.MAX_VALUE) - from;
 
-            retChunk.add(new ReadOnlyListMock(subList(from, to - from)));
+            retChunk.add(to == 0 ? List.of() : new ReadOnlyListMock(subList(from, to)));
         }
 
         return Collections.unmodifiableList(retChunk);
@@ -214,7 +214,7 @@ public abstract class NativeVector<T extends Number> //
 
         @Override
         public List<T> subList(int fromIndex, int size) {
-            return new ReadOnlyListMock(this.ref.subList(fromIndex, size - fromIndex)).ref.asList().get(0);
+            return new ReadOnlyListMock(this.ref.subList(fromIndex, size)).ref.asList().get(0);
         }
 
         @Override
