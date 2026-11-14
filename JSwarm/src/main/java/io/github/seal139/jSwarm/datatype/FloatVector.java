@@ -37,7 +37,7 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
         @Override
         public boolean tryAdvance(Consumer<? super Float> action) {
-            if (this.index >= this.maxIndex) {
+            if (this.index >= this.uBound) {
                 return false;
             }
 
@@ -70,8 +70,8 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
         super(initialSize, 4L);
     }
 
-    public FloatVector(long address, long size) {
-        super(address, size, 4);
+    public FloatVector(long address, long size, boolean empty) {
+        super(address, size, 4, empty);
     }
 
     public FloatVector(FloatVector original, long offset, long size) {
@@ -215,7 +215,7 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
         return true;
     }
-
+    
     @Override
     public boolean remove(Float value) {
         return removePrimitive(value.floatValue());

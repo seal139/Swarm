@@ -61,11 +61,11 @@ public abstract class NativeVector<T extends Number> //
         this.container = new NativeArray(initialSize * size_t);
     }
 
-    protected NativeVector(long address, long size, long size_t) {
+    protected NativeVector(long address, long size, long size_t, boolean empty) {
         this.sublist = true;
 
         this.offset = 0L;
-        this.uBound = 0L;
+        this.uBound = empty? 0L : size;
 
         this.capacity    = size;
         this.initialSize = size;
@@ -136,12 +136,17 @@ public abstract class NativeVector<T extends Number> //
         return -1;
     }
     
-    public void removeFirst() {
-        remove(0);
+    public boolean removeFirst() {
+        return remove(0);
     }
 
-    public void removeLast() {
-        remove(size() - 1);
+    public boolean removeLast() {
+    	if (this.uBound <= 0L) {
+            return false;
+        }
+    	
+    	uBound -=1;
+    	return true;
     }
     
     public boolean contains(T o) {

@@ -30,7 +30,11 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
         @Override
         public void clean() {
-            this.arena.close();
+        	if(arena != null) {
+        		this.arena.close();
+        	}
+        	
+        	arena = null;
         }
     }
 
@@ -41,16 +45,11 @@ public interface NativeList<E extends Number> extends Iterable<E> {
         public Deallocator getDeallocator() { return this.deallocator; }
 
         @Override
-        public boolean isClosed() { return this.arena == null; }
+        public boolean isClosed() { return deallocator.arena == null; }
 
         @Override
         public void close() throws Exception {
-            if (isClosed()) {
-                return;
-            }
-
             this.deallocator.clean();
-            this.arena = null;
         }
 
         // ===========================================================
@@ -62,7 +61,6 @@ public interface NativeList<E extends Number> extends Iterable<E> {
         private long intptr;
         private long size;
 
-        private Arena         arena;
         private MemorySegment primarySegment;
 
         public long getSize() { return this.size; }
@@ -83,17 +81,14 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
             this.size   = size;
             this.intptr = address;
-
-            NativeCleaner.register(this);
         }
 
         protected NativeArray(long initialSize) {
             this.staticArr = false;
 
-            this.arena             = Arena.ofConfined();
-            this.deallocator.arena = this.arena;
+            this.deallocator.arena = Arena.ofShared();
 
-            this.primarySegment = this.arena.allocate(initialSize).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+            this.primarySegment = deallocator.arena.allocate(initialSize).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
 
             this.size   = initialSize;
             this.intptr = this.primarySegment.address();
@@ -106,18 +101,13 @@ public interface NativeList<E extends Number> extends Iterable<E> {
                 throw new IllegalArgumentException("Cannot resize static array");
             }
 
-            final Arena newArena = Arena.ofConfined();
-            this.deallocator.arena = this.arena;
+            final Arena newArena = Arena.ofShared();
 
-            final MemorySegment newSegment = newArena.allocate(size);
-
-            final Arena oldArena = this.arena;
-
-            this.arena          = newArena;
-            this.primarySegment = newSegment.reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+            this.primarySegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
             this.size           = size;
 
-            oldArena.close();
+            deallocator.arena.close();
+            this.deallocator.arena = newArena;
         }
 
         public void resize(long size) {
@@ -125,21 +115,18 @@ public interface NativeList<E extends Number> extends Iterable<E> {
                 throw new IllegalArgumentException("Cannot resize static array");
             }
 
-            final Arena         newArena   = Arena.ofConfined();
+            final Arena         newArena   = Arena.ofShared();
             final MemorySegment newSegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
 
             final long _size = this.size < size ? this.size : size;
 
             MemorySegment.copy(this.primarySegment, 0, newSegment, 0, _size);
 
-            final Arena oldArena = this.arena;
-
-            this.arena             = newArena;
-            this.deallocator.arena = this.arena;
             this.primarySegment    = newSegment;
             this.size              = size;
 
-            oldArena.close();
+            deallocator.arena.close();
+            this.deallocator.arena = newArena;
         }
 
         public void set(long index, byte value) {
@@ -236,8 +223,8 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
     default E getLast() { return get(size() - 1); }
 
-    void removeFirst() ;
-    void removeLast() ;
+    boolean removeFirst() ;
+    boolean removeLast() ;
 
     boolean containsAll(Collection<?> c);
     
@@ -269,7 +256,6 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
         protected long uBound;
         protected long index;
-        protected long maxIndex;
 
         protected NativeSplitter(NativeArray source, long lBound, long uBound) {
             this.source = source;
