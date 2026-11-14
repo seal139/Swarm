@@ -20,138 +20,157 @@
 package io.github.seal139.jSwarm.datatype;
 
 import java.util.Collection;
-import java.util.List;
-import java.util.ListIterator;
+import java.util.Iterator;
+import java.util.Spliterator;
+import java.util.Stack;
+import java.util.function.Consumer;
 
 /**
  * High performance Float Vector.
  */
-public final class FloatVector extends Vector<Float> {
+public final class FloatVector extends NativeVector<Float> implements NativeList<Float> {
 
-    private static final long serialVersionUID = 3239625231594541451L;
+    protected final class FloatSplitter extends NativeSplitter<Float> {
+        protected FloatSplitter(NativeArray source, long lBound, long uBound) {
+            super(source, lBound, uBound);
+        }
 
-    private static final long WORD_SIZE  = 4;
-    private static final long SHIFT_SIZE = 2;
+        @Override
+        public boolean tryAdvance(Consumer<? super Float> action) {
+            if (this.index >= this.maxIndex) {
+                return false;
+            }
 
-    // ============ Allocator - Deallocator ==================
+            action.accept(this.source.getFloat(this.index++));
+            return true;
+        }
+
+        @Override
+        public Spliterator<Float> trySplit() {
+            final long remaining = estimateSize();
+            if (remaining <= 1L) {
+                return null;
+            }
+
+            final long half = (remaining / 2L) + this.index;
+
+            final FloatSplitter splitter = new FloatSplitter(this.source, this.index, half);
+            this.index = half;
+            this.size  = this.uBound - half;
+
+            return splitter;
+        }
+    }
 
     public FloatVector() {
-        super(16, false, WORD_SIZE, SHIFT_SIZE);
+        super(10L, 4L);
     }
 
-    public FloatVector(long initial) {
-        super(initial, false, WORD_SIZE, SHIFT_SIZE);
-    }
-
-    public FloatVector(long initial, boolean aligned) {
-        super(initial, aligned, WORD_SIZE, SHIFT_SIZE);
+    public FloatVector(long initialSize) {
+        super(initialSize, 4L);
     }
 
     public FloatVector(long address, long size) {
-        super(address, address + (size * WORD_SIZE), WORD_SIZE, SHIFT_SIZE);
+        super(address, size, 4);
     }
 
-    // ============ Functionality Operation ==================
-
-    @Override
-    public List<Float> subList(long fromIndex, long toIndex) {
-        // Safety check
-        fromIndex = this.lBound + (fromIndex << this.bit_t);
-        if ((fromIndex < this.lBound) || (fromIndex >= this.indexPtr)) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(fromIndex));
-        }
-
-        // Safety check
-        toIndex = this.lBound + (toIndex << this.bit_t);
-        if ((toIndex < this.lBound) || (toIndex > this.indexPtr)) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(toIndex));
-        }
-
-        // Safety check
-        if (toIndex < fromIndex) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(toIndex));
-        }
-
-        return new FloatVector(fromIndex, toIndex - fromIndex);
+    public FloatVector(FloatVector original, long offset, long size) {
+        super(original, offset, size);
     }
 
+    // ================
+
     @Override
-    public boolean addAll(Collection<? extends Float> c) {
-        long additional = c.size() - capacity();
-
-        if (additional > 0) {
-            reinit(capacity() + additional, this.size_t);
-        }
-
-        c.forEach(e -> {
-            memAlloc.putFloat(this.indexPtr, e);
-            this.indexPtr += this.size_t;
-        });
-
-        return true;
+    public void set(long index, Float value) {
+        setPrimitive(index, value.floatValue());
     }
 
-    @Override
-    public boolean add(Float e) {
-        if (this.indexPtr >= this.uBound) {
-            reinit(capacity() * 2L, this.size_t);
-        }
-
-        memAlloc.putFloat(this.indexPtr, e);
-        this.indexPtr += this.size_t;
-
-        return true;
+    public void setPrimitive(long index, float value) {
+        this.container.set(this.offset + index, value);
     }
 
     @Override
     public Float get(long index) {
-        // Safety check
-        if ((index < 0) || ((this.lBound + (index << this.bit_t)) >= this.indexPtr)) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(index));
+        return getPrimitive(index);
+    }
+
+    public float getPrimitive(long index) {
+        return this.container.getFloat(this.offset + index);
+    }
+
+    // Secondary
+
+    @Override
+    public boolean add(Float value) {
+        return addPrimitive(value.floatValue());
+    }
+
+    public boolean addPrimitive(float value) {
+        if (this.uBound >= capacity()) {
+            if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+
+            final long newSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+
+            this.container.resize(newSize * 4L);
+            this.capacity = newSize;
         }
 
-        return directGet(index);
+        setPrimitive(this.uBound++, value);
+        return true;
     }
 
     @Override
-    public Float set(long index, Float element) {
-        // Safety check
-        if ((index < 0) || ((this.lBound + (index << this.bit_t)) >= this.indexPtr)) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(index));
+    public boolean remove(long index) {
+        if ((index < 0L) || (this.uBound <= 0L) || (index >= this.uBound)) {
+            return false;
         }
 
-        return directSet(index, element.floatValue());
+        long lidx = --this.uBound;
+        if (lidx > index) {
+            setPrimitive(index, getPrimitive(lidx));
+        }
+
+        return true;
     }
 
     @Override
-    public Float remove(long index) {
-        if ((index < 0) || ((this.lBound + (index << this.bit_t)) >= this.indexPtr)) {
-            throw new ArrayIndexOutOfBoundsException("Out of bound: " + String.valueOf(index));
-        }
+    public boolean remove(Float value) {
+        return removePrimitive(value.floatValue());
+    }
 
-        return directRemove(index);
+    public boolean removePrimitive(float value) {
+        return remove(indexOf(value));
     }
 
     @Override
     public void clear() {
-        if (this.dynamic) {
-            this.indexPtr = this.lBound;
-            return;
+        if (!this.sublist) {
+            this.container.reset(this.initialSize * 4L);
+
+            this.capacity = this.initialSize;
+        }
+        else {
+            for (long i = 0; i < this.uBound; i++) {
+                setPrimitive(i, 0.0f);
+            }
         }
 
-        for (long i = this.lBound; i < this.indexPtr; i += this.size_t) {
-            memAlloc.putFloat(i, 0.0f);
-        }
+        this.uBound = 0L;
     }
 
     @Override
-    public long longIndexOf(Float element) {
-        final float ref = element.floatValue();
-        final long  s   = (longSize() << this.bit_t) + this.lBound;
+    public long indexOf(Float value) {
+        return indexOfPrimitive(value.floatValue());
+    }
 
-        for (long i = this.lBound; i < s; i += this.size_t) {
-            if (memAlloc.getFloat(i) == ref) {
-                return (i - this.lBound) >> this.bit_t;
+    public long indexOfPrimitive(float value) {
+        for (long idx = 0; idx < this.uBound; idx++) {
+            float val = get(idx);
+
+            if (val == value) {
+                return idx;
             }
         }
 
@@ -159,106 +178,161 @@ public final class FloatVector extends Vector<Float> {
     }
 
     @Override
-    public long longLastIndexOf(Float o) {
-        final float ref = o.floatValue();
-        final long  s   = (longSize() << this.bit_t) + (this.lBound - this.size_t);
+    public long lastIndexOf(Float value) {
+        return lastIndexOfPrimitive(value.floatValue());
+    }
 
-        for (long i = s; i >= this.lBound; i -= this.size_t) {
-            if (memAlloc.getFloat(i) == ref) {
-                return (i - this.lBound) >> this.bit_t;
+    public long lastIndexOfPrimitive(float value) {
+        for (long idx = this.uBound - 1; idx >= 0; idx--) {
+            float val = get(idx);
+
+            if (val == value) {
+                return idx;
             }
         }
 
         return -1;
     }
 
-    @Override
-    public ListIterator<Float> listIterator(int index) {
-        return new ListIterator<>() {
-            private final long st = FloatVector.this.size_t;
-            private final long bt = FloatVector.this.bit_t;
-            private final long ub = FloatVector.this.indexPtr - this.st;
+    // Extension
 
-            private long memPtr = FloatVector.this.lBound + ((index - 1) << this.bt);
+    public boolean addAll(float... c) {
+        if (c == null) {
+            return false;
+        }
+
+        final int size = c.length;
+
+        if (size == 0) {
+            return false;
+        }
+
+        for (int i = 0; i < size; i++) {
+            add(c[i]);
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean removeAll(Collection<Float> c) {
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+
+            if (c.contains(val)) {
+                remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+
+    @Override
+    public boolean retainAll(Collection<Float> c) {
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+
+            if (!c.contains(val)) {
+                remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+
+    @Override
+    public Iterator<Float> iterator() {
+        return new Iterator<>() {
+            private final NativeArray arr = FloatVector.this.container;
+
+            private long currentIndex = FloatVector.this.offset;
+            private long maxIndex     = FloatVector.this.uBound + FloatVector.this.offset;
 
             @Override
             public boolean hasNext() {
-                return this.memPtr < this.ub;
-            }
-
-            @Override
-            public int nextIndex() {
-                return (int) ((this.memPtr + this.st) >> this.bt);
+                return this.currentIndex < this.maxIndex;
             }
 
             @Override
             public Float next() {
-                this.memPtr += this.st;
-                return memAlloc.getFloat(this.memPtr);
+                return this.arr.getFloat(this.currentIndex++);
             }
 
             @Override
-            public boolean hasPrevious() {
-                return this.memPtr >= FloatVector.this.lBound;
-            }
-
-            @Override
-            public int previousIndex() {
-                return (int) ((this.memPtr - this.st) >> this.bt);
-            }
-
-            @Override
-            public Float previous() {
-                this.memPtr -= this.st;
-                return memAlloc.getFloat(this.memPtr);
-            }
-
-            @Override
-            public void set(Float e) {
-                memAlloc.putFloat(this.memPtr, e);
-            }
-
-            @Override
-            public void remove() {
-                throw new UnsupportedOperationException("Not supported due to performance issue");
-            }
-
-            @Override
-            public void add(Float e) {
-                throw new UnsupportedOperationException("Not supported due to performance issue");
+            public void forEachRemaining(Consumer<? super Float> action) {
+                while (hasNext()) {
+                    action.accept(next());
+                }
             }
         };
     }
 
-    // -----=======~~ Direct Functionality ~~~=======-----
-    public float directGet(long index) {
-        return memAlloc.getFloat(this.lBound + (index << this.bit_t));
+    @Override
+    public FloatVector subList(long fromIndex, long size) {
+        return new FloatVector(this, fromIndex, size);
     }
 
-    public float directSet(long index, float element) {
-        final long  memPtr = this.lBound + (index << this.bit_t);
-        final float value  = memAlloc.getFloat(memPtr);
-
-        memAlloc.putFloat(memPtr, element);
-        return value;
+    @Override
+    public Spliterator<Float> spliterator() {
+        return new FloatSplitter(this.container, this.offset, this.offset + this.uBound);
     }
 
-    public float directRemove(long index) {
-        final long idx = this.lBound + (index << this.bit_t);
+    @Override
+    public void forEach(Consumer<? super Float> action) {
+        for (long i = 0; i < this.uBound; i++) {
+            action.accept(getPrimitive(i));
+        }
+    }
 
-        final float prevValue = memAlloc.getFloat(idx);
+    public void forEachPrimitive(FloatConsumer action) {
+        for (long i = 0; i < this.uBound; i++) {
+            action.accept(getPrimitive(i));
+        }
+    }
 
-        if (this.dynamic) {
-            // Shift left
-            for (long i = idx; i < this.indexPtr; i += this.size_t) {
-                memAlloc.putFloat(i, memAlloc.getFloat(i + this.size_t));
+    @Override
+    public Float[][] toArray() {
+        final long maxSize = Integer.MAX_VALUE;
+
+        final Stack<Spliterator<Float>> tmp = new Stack<>();
+        tmp.push(spliterator());
+
+        final Float[][] ret = new Float[(int) (size() % maxSize) + 1][];
+
+        Spliterator<Float> splitter;
+
+        int iter = -1;
+        do {
+            splitter = tmp.pop();
+
+            if (splitter.estimateSize() > maxSize) {
+                tmp.push(splitter);
+                tmp.push(splitter.trySplit());
+                continue;
             }
 
-            this.indexPtr -= this.size_t;
-            return prevValue;
-        }
+            final Float[] f = new Float[(int) splitter.estimateSize()];
+            ret[++iter] = f;
 
-        memAlloc.putFloat(idx, 0.0f);
-        return prevValue;
+            int[] indexer = {
+                    -1 };
+            splitter.forEachRemaining(v -> {
+                f[++indexer[0]] = v;
+            });
+        }
+        while (!tmp.isEmpty());
+
+        return ret;
     }
+
+    public interface FloatConsumer {
+        void accept(float arg);
+    }
+
 }
