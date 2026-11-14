@@ -104,6 +104,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
             final Arena newArena = Arena.ofShared();
 
             this.primarySegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+            this.intptr         = this.primarySegment.address();
             this.size           = size;
 
             deallocator.arena.close();
@@ -123,6 +124,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
             MemorySegment.copy(this.primarySegment, 0, newSegment, 0, _size);
 
             this.primarySegment    = newSegment;
+            this.intptr 		   = this.primarySegment.address();
             this.size              = size;
 
             deallocator.arena.close();

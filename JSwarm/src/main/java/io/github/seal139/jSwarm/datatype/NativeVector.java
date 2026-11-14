@@ -160,39 +160,24 @@ public abstract class NativeVector<T extends Number> //
     public boolean containsAll(Collection<?> c) {
     	final long totalIter = c.size() * size();
     	final long threshold = 10_000_000L;
-    	
-    	
-    	final Stream<?> stream;
 
     	if(totalIter <= threshold) {
-    		stream = c.stream();
+    		return c.stream().allMatch(v -> this.contains(v));
 		}else {
-    		stream = c.parallelStream();
+			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
-    	
-    	return stream.allMatch(v -> this.contains(v));
     }
     
     public boolean containsAll(NativeList<T> c) {
     	final long totalIter = c.size() * size();
     	final long threshold = 10_000_000L;
     	
-    	final Stream<T> stream;
-    	final NativeList<T> target;
-    	
-		if(totalIter <= threshold) {
-    		stream = c.stream();
-    		target = this;        
-		}
-		else if(this.size() <= c.size()) {
-			stream = this.parallelStream();
-    		target = c;     
-    	}else {
-    		stream = c.parallelStream();
-    		target = this;
+
+    	if(totalIter <= threshold) {
+    		return c.stream().allMatch(v -> this.contains(v));
+		}else {
+			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
-    	
-    	return stream.allMatch(v -> target.contains(v));
     }
 
     @Override
@@ -214,7 +199,7 @@ public abstract class NativeVector<T extends Number> //
             long from = Integer.MAX_VALUE * sequence;
             long to   = Math.min(size(), from + Integer.MAX_VALUE);
 
-            retChunk.add(new ReadOnlyListMock(subList(from, to)));
+            retChunk.add(new ReadOnlyListMock(subList(from, to - from)));
         }
 
         return Collections.unmodifiableList(retChunk);
@@ -228,8 +213,8 @@ public abstract class NativeVector<T extends Number> //
         }
 
         @Override
-        public List<T> subList(int fromIndex, int toIndex) {
-            return new ReadOnlyListMock(this.ref.subList(fromIndex, toIndex)).ref.asList().get(0);
+        public List<T> subList(int fromIndex, int size) {
+            return new ReadOnlyListMock(this.ref.subList(fromIndex, size - fromIndex)).ref.asList().get(0);
         }
 
         @Override
