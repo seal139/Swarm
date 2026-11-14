@@ -158,10 +158,10 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
             }
     		
     		this.capacity -= remaining;
-    		container.resize(this.capacity);
+    		container.resize(this.capacity * 4);
     	}
     	
-    	container.memcpy(c.container, this.size(), c.size());
+    	container.memcpy(c.container, this.size() * 4, c.size() * 4);
     	uBound = this.size() + c.size();
 		return true;
     }
@@ -382,8 +382,8 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
 
     @Override
-    public FloatVector subList(long fromIndex, long size) {
-        return new FloatVector(this, fromIndex, size);
+    public FloatVector subList(long fromIndex, long toIndex) {
+        return new FloatVector(this, fromIndex, toIndex);
     }
 
     @Override
