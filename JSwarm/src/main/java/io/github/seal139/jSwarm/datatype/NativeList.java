@@ -45,7 +45,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
         public Deallocator getDeallocator() { return this.deallocator; }
 
         @Override
-        public boolean isClosed() { return deallocator.arena == null; }
+        public boolean isClosed() { return !this.staticArr && deallocator.arena == null; }
 
         @Override
         public void close() throws Exception {
@@ -249,7 +249,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
     Iterator<E> iterator();
 
-    NativeList<E> subList(long fromIndex, long size);
+    NativeList<E> subList(long fromIndex, long toIndex);
 
     void forEach(Consumer<? super E> action);
 
@@ -274,7 +274,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
 
         @Override
         public int characteristics() {
-            return Spliterator.NONNULL;
+            return Spliterator.NONNULL | Spliterator.ORDERED | Spliterator.SIZED | Spliterator.SUBSIZED;
         }
 
         @Override

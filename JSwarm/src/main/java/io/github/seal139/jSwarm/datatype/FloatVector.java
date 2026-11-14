@@ -157,10 +157,12 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
                 return false;
             }
     		
-    		container.resize(capacity - remaining);
+    		this.capacity -= remaining;
+    		container.resize(this.capacity);
     	}
     	
     	container.memcpy(c.container, this.size(), c.size());
+    	uBound = this.size() + c.size();
 		return true;
     }
     
