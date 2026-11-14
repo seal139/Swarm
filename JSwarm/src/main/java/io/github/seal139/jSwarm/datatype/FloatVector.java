@@ -42,6 +42,7 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
             }
 
             action.accept(this.source.getFloat(this.index++));
+            this.size -=1;
             return true;
         }
 
@@ -150,13 +151,16 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
     
     public boolean addAll(FloatVector c) {
-    	final long uBound = c.size();
-    	for(long i = 0; i < uBound; i++) {
-    		if(!addPrimitive(c.getPrimitive(i))) {
-    			return false;
-    		}
+    	final long remaining = this.capacity - (this.size() + c.size());
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+    		container.resize(capacity - remaining);
     	}
     	
+    	container.memcpy(c.container, this.size(), c.size());
 		return true;
     }
     
@@ -305,22 +309,11 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     	final long totalIter = c.size() * size();
     	final long threshold = 10_000_000L;
     	
-    	final Stream<Float> stream;
-    	final FloatVector target;
-    	
-		if(totalIter <= threshold) {
-    		stream = c.stream();
-    		target = this;        
-		}
-		else if(this.size() <= c.size()) {
-			stream = this.parallelStream();
-    		target = c;     
-    	}else {
-    		stream = c.parallelStream();
-    		target = this;
+    	if(totalIter <= threshold) {
+    		return c.stream().allMatch(v -> this.contains(v));
+		}else {
+			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
-    	
-    	return stream.allMatch(v -> target.contains(v.floatValue()));
     }
     
     @Override

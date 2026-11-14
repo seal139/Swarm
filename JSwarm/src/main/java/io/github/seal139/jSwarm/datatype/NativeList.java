@@ -130,6 +130,10 @@ public interface NativeList<E extends Number> extends Iterable<E> {
             deallocator.arena.close();
             this.deallocator.arena = newArena;
         }
+        
+        public void memcpy(NativeArray source, long offset, long size) {
+        	MemorySegment.copy(source.primarySegment, 0, primarySegment, offset, size);
+        }
 
         public void set(long index, byte value) {
             this.primarySegment.setAtIndex(ValueLayout.JAVA_BYTE, index, value);

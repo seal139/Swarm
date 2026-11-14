@@ -248,11 +248,11 @@ public abstract class NativeVector<T extends Number> //
         }
 
         @Override
-        public boolean isEmpty() { return NativeVector.this.isEmpty(); }
+        public boolean isEmpty() { return ref.isEmpty(); }
 
         @Override
         public Iterator<T> iterator() {
-            return NativeVector.this.iterator();
+            return ref.iterator();
         }
         // ===========
 
