@@ -22,8 +22,8 @@ package io.github.seal139.jSwarm.datatype;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Spliterator;
-import java.util.Stack;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 /**
  * High performance Float Vector.
@@ -84,6 +84,10 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     public void set(long index, Float value) {
         setPrimitive(index, value.floatValue());
     }
+    
+    public void set(long index, float value) {
+        setPrimitive(index, value);
+    }
 
     public void setPrimitive(long index, float value) {
         this.container.set(this.offset + index, value);
@@ -104,6 +108,10 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     public boolean add(Float value) {
         return addPrimitive(value.floatValue());
     }
+    
+    public boolean add(float value) {
+        return addPrimitive(value);
+    }
 
     public boolean addPrimitive(float value) {
         if (this.uBound >= capacity()) {
@@ -119,6 +127,79 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
         setPrimitive(this.uBound++, value);
         return true;
+    }
+    
+    public boolean addAll(float... c) {
+        if (c == null) {
+            return false;
+        }
+
+        final int size = c.length;
+
+        if (size == 0) {
+            return false;
+        }
+
+        for (int i = 0; i < size; i++) {
+          if(!addPrimitive(c[i])) {
+        	  return false;
+          }
+        }
+
+        return true;
+    }
+    
+    public boolean addAll(FloatVector c) {
+    	final long uBound = c.size();
+    	for(long i = 0; i < uBound; i++) {
+    		if(!addPrimitive(c.getPrimitive(i))) {
+    			return false;
+    		}
+    	}
+    	
+		return true;
+    }
+    
+    @Override
+    public long indexOf(Float value) {
+        return indexOfPrimitive(value.floatValue());
+    }
+    
+    public long indexOf(float value) {
+        return indexOfPrimitive(value);
+    }
+
+    public long indexOfPrimitive(float value) {
+        for (long idx = 0; idx < this.uBound; idx++) {
+            float val = getPrimitive(idx);
+
+            if (val == value) {
+                return idx;
+            }
+        }
+
+        return -1;
+    }
+
+    @Override
+    public long lastIndexOf(Float value) {
+        return lastIndexOfPrimitive(value.floatValue());
+    }
+    
+    public long lastIndexOf(float value) {
+        return lastIndexOfPrimitive(value);
+    }
+
+    public long lastIndexOfPrimitive(float value) {
+        for (long idx = this.uBound - 1; idx >= 0; idx--) {
+            float val = getPrimitive(idx);
+
+            if (val == value) {
+                return idx;
+            }
+        }
+
+        return -1;
     }
 
     @Override
@@ -139,11 +220,109 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     public boolean remove(Float value) {
         return removePrimitive(value.floatValue());
     }
-
-    public boolean removePrimitive(float value) {
-        return remove(indexOf(value));
+    
+    public boolean remove(float value) {
+        return removePrimitive(value);
     }
 
+    public boolean removePrimitive(float value) {
+        return remove(indexOfPrimitive(value));
+    }
+    
+    public boolean removeAll(float... c) {
+    	 final long oldSize = this.uBound;
+    	 final int ctr = c.length;
+    	 
+         long maxIdx = this.uBound;
+         next: while (--maxIdx >= 0) {
+             final float val = getPrimitive(maxIdx);
+             
+             for(int i = 0; i < ctr; i++) {
+            	if(c[i] == val) {
+            		remove(maxIdx);
+            		continue next;
+            	}
+             }
+         }
+
+         return oldSize != this.uBound;
+    }
+    
+    public boolean removeAll(FloatVector c) {
+    	final long oldSize = this.uBound;
+   	 	final long ctr = c.size();
+   	 
+        long maxIdx = this.uBound;
+        next: while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+            
+            for(int i = 0; i < ctr; i++) {
+	           	if(c.getPrimitive(i) == val) {
+	           		remove(maxIdx);
+	           		continue next;
+	            }
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
+    @Override
+    public boolean removeAll(Collection<Float> c) {
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+
+            if (c.contains(val)) {
+                if(!remove(maxIdx)) {
+                	return false;
+                }
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+
+    public boolean contains(float o) {
+    	return indexOfPrimitive(o) >= 0;
+	}
+    
+    public boolean containsAll(float... c) {
+        final int count = c.length;
+
+        for (int i = 0; i < count; i++) {
+            if (indexOfPrimitive(c[i]) < 0L) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+    
+    public boolean containsAll(FloatVector c) {
+    	final long totalIter = c.size() * size();
+    	final long threshold = 10_000_000L;
+    	
+    	final Stream<Float> stream;
+    	final FloatVector target;
+    	
+		if(totalIter <= threshold) {
+    		stream = c.stream();
+    		target = this;        
+		}
+		else if(this.size() <= c.size()) {
+			stream = this.parallelStream();
+    		target = c;     
+    	}else {
+    		stream = c.parallelStream();
+    		target = this;
+    	}
+    	
+    	return stream.allMatch(v -> target.contains(v.floatValue()));
+    }
+    
     @Override
     public void clear() {
         if (!this.sublist) {
@@ -160,75 +339,9 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
         this.uBound = 0L;
     }
 
-    @Override
-    public long indexOf(Float value) {
-        return indexOfPrimitive(value.floatValue());
-    }
-
-    public long indexOfPrimitive(float value) {
-        for (long idx = 0; idx < this.uBound; idx++) {
-            float val = get(idx);
-
-            if (val == value) {
-                return idx;
-            }
-        }
-
-        return -1;
-    }
-
-    @Override
-    public long lastIndexOf(Float value) {
-        return lastIndexOfPrimitive(value.floatValue());
-    }
-
-    public long lastIndexOfPrimitive(float value) {
-        for (long idx = this.uBound - 1; idx >= 0; idx--) {
-            float val = get(idx);
-
-            if (val == value) {
-                return idx;
-            }
-        }
-
-        return -1;
-    }
-
     // Extension
 
-    public boolean addAll(float... c) {
-        if (c == null) {
-            return false;
-        }
-
-        final int size = c.length;
-
-        if (size == 0) {
-            return false;
-        }
-
-        for (int i = 0; i < size; i++) {
-            add(c[i]);
-        }
-
-        return true;
-    }
-
-    @Override
-    public boolean removeAll(Collection<Float> c) {
-        final long oldSize = this.uBound;
-
-        long maxIdx = this.uBound;
-        while (--maxIdx >= 0) {
-            final float val = getPrimitive(maxIdx);
-
-            if (c.contains(val)) {
-                remove(maxIdx);
-            }
-        }
-
-        return oldSize != this.uBound;
-    }
+    
 
     @Override
     public boolean retainAll(Collection<Float> c) {
@@ -245,7 +358,7 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
         return oldSize != this.uBound;
     }
-
+    
     @Override
     public Iterator<Float> iterator() {
         return new Iterator<>() {
@@ -294,41 +407,6 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
         for (long i = 0; i < this.uBound; i++) {
             action.accept(getPrimitive(i));
         }
-    }
-
-    @Override
-    public Float[][] toArray() {
-        final long maxSize = Integer.MAX_VALUE;
-
-        final Stack<Spliterator<Float>> tmp = new Stack<>();
-        tmp.push(spliterator());
-
-        final Float[][] ret = new Float[(int) (size() % maxSize) + 1][];
-
-        Spliterator<Float> splitter;
-
-        int iter = -1;
-        do {
-            splitter = tmp.pop();
-
-            if (splitter.estimateSize() > maxSize) {
-                tmp.push(splitter);
-                tmp.push(splitter.trySplit());
-                continue;
-            }
-
-            final Float[] f = new Float[(int) splitter.estimateSize()];
-            ret[++iter] = f;
-
-            int[] indexer = {
-                    -1 };
-            splitter.forEachRemaining(v -> {
-                f[++indexer[0]] = v;
-            });
-        }
-        while (!tmp.isEmpty());
-
-        return ret;
     }
 
     public interface FloatConsumer {

@@ -98,28 +98,96 @@ public abstract class NativeVector<T extends Number> //
     public long capacity() {
         return this.capacity;
     }
-
+    
     @Override
     public boolean addAll(Collection<T> c) {
-        final Iterator<? extends T> iter = c.iterator();
-
-        boolean ok = false;
-        while (iter.hasNext() && add(iter.next())) {
-            ok = true;
-        }
-
-        return ok;
+    	for(T v : c) {
+    		if(!add(v)) {
+    			return false;
+    		}
+    	}
+    	
+    	return true;
     }
-
+    
     @Override
-    public boolean containsAll(Collection<T> c) {
-        for (T val : c) {
-            if (!contains(val)) {
-                return false;
+    public long indexOf(Object o) {
+        for (long idx = 0; idx < this.uBound; idx++) {
+            T val = get(idx);
+
+            if (o.equals(val)) {
+                return idx;
             }
         }
 
-        return true;
+        return -1;
+    }
+
+    @Override
+    public long lastIndexOf(Object o) {
+        for (long idx = this.uBound - 1; idx >= 0; idx--) {
+            T val = get(idx);
+
+            if (o.equals(val)) {
+                return idx;
+            }
+        }
+
+        return -1;
+    }
+    
+    public void removeFirst() {
+        remove(0);
+    }
+
+    public void removeLast() {
+        remove(size() - 1);
+    }
+    
+    public boolean contains(T o) {
+        return indexOf(o) >= 0;
+    }
+
+    public boolean contains(Object o) {
+        return indexOf(o) >= 0;
+    }
+    
+    public boolean containsAll(Collection<?> c) {
+    	final long totalIter = c.size() * size();
+    	final long threshold = 10_000_000L;
+    	
+    	
+    	final Stream<?> stream;
+
+    	if(totalIter <= threshold) {
+    		stream = c.stream();
+		}else {
+    		stream = c.parallelStream();
+    	}
+    	
+    	return stream.allMatch(v -> this.contains(v));
+    }
+    
+    public boolean containsAll(NativeList<T> c) {
+    	final long totalIter = c.size() * size();
+    	final long threshold = 10_000_000L;
+    	
+    	final Stream<T> stream;
+    	final NativeList<T> target;
+    	
+		if(totalIter <= threshold) {
+    		stream = c.stream();
+    		target = this;        
+		}
+		else if(this.size() <= c.size()) {
+			stream = this.parallelStream();
+    		target = c;     
+    	}else {
+    		stream = c.parallelStream();
+    		target = this;
+    	}
+    	
+    	return stream.allMatch(v -> target.contains(v));
     }
 
     @Override
@@ -160,25 +228,13 @@ public abstract class NativeVector<T extends Number> //
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public boolean contains(Object o) {
-            try {
-                return this.ref.contains((T) o);
-            }
-            catch (ClassCastException e) {
-                return false;
-            }
+            return this.ref.contains(o);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public boolean containsAll(Collection<?> c) {
-            try {
-                return this.ref.containsAll((Collection<T>) c);
-            }
-            catch (ClassCastException e) {
-                return false;
-            }
+            return this.ref.containsAll(c);
         }
 
         @Override
@@ -187,25 +243,13 @@ public abstract class NativeVector<T extends Number> //
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public int indexOf(Object o) {
-            try {
-                return (int) this.ref.indexOf((T) o);
-            }
-            catch (ClassCastException e) {
-                return -1;
-            }
+            return (int) this.ref.indexOf(o);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public int lastIndexOf(Object o) {
-            try {
-                return (int) this.ref.lastIndexOf((T) o);
-            }
-            catch (ClassCastException e) {
-                return -1;
-            }
+            return (int) this.ref.lastIndexOf(o);
         }
 
         @Override
@@ -220,7 +264,6 @@ public abstract class NativeVector<T extends Number> //
         public Iterator<T> iterator() {
             return NativeVector.this.iterator();
         }
-
         // ===========
 
         @Override
@@ -250,12 +293,12 @@ public abstract class NativeVector<T extends Number> //
 
         @Override
         public ListIterator<T> listIterator() {
-            throw new UnsupportedOperationException("List is readonly");
+            throw new UnsupportedOperationException("Operation is not supported");
         }
 
         @Override
         public ListIterator<T> listIterator(int index) {
-            throw new UnsupportedOperationException("List is readonly");
+            throw new UnsupportedOperationException("Operation is not supported");
         }
 
         @Override
@@ -285,12 +328,12 @@ public abstract class NativeVector<T extends Number> //
 
         @Override
         public Object[] toArray() {
-            throw new UnsupportedOperationException("List is readonly");
+            throw new UnsupportedOperationException("Operation is not supported");
         }
 
         @Override
-        public <T> T[] toArray(T[] arg0) {
-            throw new UnsupportedOperationException("List is readonly");
+        public <E> E[] toArray(E[] arg0) {
+            throw new UnsupportedOperationException("Operation is not supported");
         }
 
     }

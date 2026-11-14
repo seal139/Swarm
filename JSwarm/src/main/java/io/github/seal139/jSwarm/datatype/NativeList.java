@@ -15,7 +15,7 @@ import io.github.seal139.jSwarm.misc.NativeCleaner;
 import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources;
 import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources.Deallocator;
 
-public interface NativeList<E extends Number> {
+public interface NativeList<E extends Number> extends Iterable<E> {
 
     static NativeArray ofStatic(long size) {
         return new NativeArray(size);
@@ -217,8 +217,10 @@ public interface NativeList<E extends Number> {
 
     void clear();
 
+    long indexOf(Object o);
     long indexOf(E o);
 
+    long lastIndexOf(Object o);
     long lastIndexOf(E o);
 
     // Extension
@@ -228,37 +230,29 @@ public interface NativeList<E extends Number> {
 
     boolean retainAll(Collection<E> c);
 
-    boolean containsAll(Collection<E> c);
-
     default boolean isEmpty() { return size() == 0L; }
 
     default E getFirst() { return get(0); }
 
     default E getLast() { return get(size() - 1); }
 
-    default void removeFirst() {
-        remove(0);
-    }
+    void removeFirst() ;
+    void removeLast() ;
 
-    default void removeLast() {
-        remove(size() - 1);
-    }
+    boolean containsAll(Collection<?> c);
+    
+    boolean containsAll(NativeList<E> c);
 
-    default boolean contains(E o) {
-        return indexOf(o) >= 0;
-    }
+    boolean contains(E o) ;
+
+    boolean contains(Object o) ;
 
     // Interopability
     List<List<E>> asList();
-    E[][] toArray();
 
-    default Stream<E> stream() {
-        return StreamSupport.stream(spliterator(), false);
-    }
+    Stream<E> stream() ;
 
-    default Stream<E> parallelStream() {
-        return StreamSupport.stream(spliterator(), true);
-    }
+    Stream<E> parallelStream() ;
 
     Iterator<E> iterator();
 
