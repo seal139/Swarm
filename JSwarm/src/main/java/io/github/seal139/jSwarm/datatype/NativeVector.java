@@ -201,7 +201,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         @Override
         public List<T> subList(int fromIndex, int toIndex) {
-        	return toIndex == fromIndex ? List.of() : new ReadOnlyListMock(this.ref.subList(fromIndex, toIndex)).ref.asList().get(0);
+        	return toIndex == fromIndex ? List.of() : new ReadOnlyListMock(this.ref.subList(fromIndex, toIndex));
         }
 
         @Override

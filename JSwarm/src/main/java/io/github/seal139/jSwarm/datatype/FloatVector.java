@@ -287,25 +287,41 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
     
     public boolean removeAll(float... c) {
-    	 final long oldSize = this.uBound;
-    	 final int ctr = c.length;
-    	 
-         long maxIdx = this.uBound;
-         next: while (--maxIdx >= 0) {
-             final float val = getPrimitive(maxIdx);
-             
-             for(int i = 0; i < ctr; i++) {
-            	if(c[i] == val) {
-            		remove(maxIdx);
-            		continue next;
-            	}
-             }
-         }
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.length == 0) {
+    		return false;
+    	}
+    	
+    	final long oldSize = this.uBound;
+    	final int ctr = c.length;
+    	
+        long maxIdx = this.uBound;
+        next: while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+            
+            for(int i = 0; i < ctr; i++) {
+	           	if(c[i] == val) {
+	           		remove(maxIdx);
+	           		continue next;
+	           	}
+            }
+        }
 
          return oldSize != this.uBound;
     }
     
     public boolean removeAll(FloatVector c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
     	final long oldSize = this.uBound;
    	 	final long ctr = c.size();
    	 
@@ -326,6 +342,14 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     
     @Override
     public boolean removeAll(Collection<Float> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
         final long oldSize = this.uBound;
 
         long maxIdx = this.uBound;
@@ -347,6 +371,14 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 	}
     
     public boolean containsAll(float... c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.length == 0) {
+    		return false;
+    	}
+    	
         final int count = c.length;
 
         for (int i = 0; i < count; i++) {
@@ -359,6 +391,14 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
     
     public boolean containsAll(FloatVector c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
     	final long totalIter = c.size() * size();
     	
     	if(totalIter <= THRESHOLD) {
@@ -388,6 +428,16 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
     @Override
     public boolean retainAll(Collection<Float> c) {
+    	if(c == null) {
+    		clear();
+    		return true;
+    	}
+    	
+    	if(c.size() == 0) {
+    		clear();
+    		return true;
+    	}
+    	
         final long oldSize = this.uBound;
 
         long maxIdx = this.uBound;
@@ -397,6 +447,62 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
             if (!c.contains(val)) {
                 remove(maxIdx);
             }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
+    public boolean retainAll(FloatVector c) {
+    	if(c == null) {
+    		clear();
+    		return true;
+    	}
+    	
+    	if(c.size() == 0) {
+    		clear();
+    		return true;
+    	}
+    	
+    	final long oldSize = this.uBound;
+   	 
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+            
+            if (!c.contains(val)) {
+                remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
+    public boolean retainAll(float ... c) {
+    	if(c == null) {
+    		clear();
+    		return true;
+    	}
+    	
+    	if(c.length == 0) {
+    		clear();
+    		return true;
+    	}
+    	
+    	final long oldSize = this.uBound;
+   	 
+        long maxIdx = this.uBound;
+        
+        int iterBound = c.length;
+        next: while (--maxIdx >= 0) {
+            final float val = getPrimitive(maxIdx);
+            
+            for(int i = 0; i < iterBound; i++) {
+            	if (c[i] == val) {
+            		continue next;
+                }
+            }
+            
+            remove(maxIdx);
         }
 
         return oldSize != this.uBound;
