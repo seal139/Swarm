@@ -22,9 +22,12 @@ package io.github.seal139.jSwarm.datatype;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
+import java.util.Spliterator;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -75,7 +78,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     }
 
     protected NativeVector(NativeVector<T> original, long offset, long size) {
-        if ((offset < 0) || (size <= 0) || ((offset + size) > (original.uBound))) {
+        if ((offset < 0) || (size < 0) || ((offset + size) > (original.uBound))) {
             throw new IndexOutOfBoundsException();
         }
 
@@ -89,7 +92,14 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         this.container = original.container;
     }
+    
+    protected abstract long getDataSize();
 
+    @Override
+    public long getNativeAddress() {
+    	return container.getNativeAddress();
+    }
+    
     @Override
     public long size() {
         return this.uBound;
@@ -126,10 +136,12 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         return -1;
     }
     
+    @Override
     public boolean removeFirst() {
         return remove(0);
     }
 
+    @Override
     public boolean removeLast() {
     	if (this.uBound <= 0L) {
             return false;
@@ -139,6 +151,96 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     	return true;
     }
     
+    @Override
+	public boolean addAll(@SuppressWarnings("unchecked") T... c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if (c.length == 0) {
+            return false;
+        }
+    	
+    	final long remaining = this.capacity - (this.size() + c.length);
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * getDataSize());
+    	}
+    	
+    	for(T val : c) {
+        	set(uBound++, val);
+    	}
+    	
+    	return true;
+    }
+    
+    @Override
+    public boolean addAll(Collection<T> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if (c.size() == 0) {
+            return false;
+        }
+    	
+    	final long remaining = this.capacity - (this.size() + c.size());
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * getDataSize());
+    	}
+    	
+    	for(T val : c) {
+    		set(uBound++, val);
+    	}
+    	
+    	return true;
+    }
+    
+    @Override
+	public boolean addAll(NativeList<T> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if (c.size() == 0) {
+            return false;
+        }
+    	 
+    	final long remaining = this.capacity - (this.size() + c.size());
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * getDataSize());
+    	}
+    	
+    	for(T val : c) {
+    		set(uBound++, val);
+    	}
+    	
+    	return true;
+	}
+    
     public boolean contains(T o) {
         return indexOf(o) >= 0;
     }
@@ -147,7 +249,33 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         return indexOf(o) >= 0;
     }
     
+    public boolean containsAll(@SuppressWarnings("unchecked") T... c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.length == 0) {
+    		return false;
+    	}
+    	
+        for(T val : c) {
+        	if (indexOf(val) < 0L) {
+                return false;
+            }
+    	}
+
+        return true;
+    }
+    
     public boolean containsAll(Collection<?> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
     	final long totalIter = c.size() * size();
 
     	if(totalIter <= THRESHOLD) {
@@ -158,6 +286,14 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     }
     
     public boolean containsAll(NativeList<T> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
     	final long totalIter = c.size() * size();
     	
     	if(totalIter <= THRESHOLD) {
@@ -166,7 +302,167 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
     }
+    
+    @Override
+   	public boolean retainAll(NativeList<T> c) {
+       	if(c == null) {
+       		clear();
+       		return true;
+       	}
+       	
+       	if(c.size() == 0) {
+       		clear();
+       		return true;
+       	}
+       	
+       	final long oldSize = this.uBound;
+      	 
+       long maxIdx = this.uBound;
+       while (--maxIdx >= 0) {
+           final T val = get(maxIdx);
+           
+           if (!c.contains(val)) {
+               remove(maxIdx);
+           }
+       }
 
+       return oldSize != this.uBound;
+   }
+   @Override
+   public boolean retainAll(@SuppressWarnings("unchecked")    T ... c) {
+    	if(c == null) {
+    		clear();
+    		return true;
+    	}
+    	
+    	if(c.length == 0) {
+    		clear();
+    		return true;
+    	}
+    	
+    	final Set<T> ref = new HashSet<>();
+    	for(T val : c) {
+    		ref.add(val);
+    	}
+    	
+    	final long oldSize = this.uBound;
+   	 
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+        	final T val = get(maxIdx);
+        	if(!ref.contains(val)) {
+            	remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+   
+    @Override
+    public boolean retainAll(Collection<T> c) {
+    	if(c == null) {
+    		clear();
+    		return true;
+    	}
+    	
+    	if(c.size() == 0) {
+    		clear();
+    		return true;
+    	}
+    	
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final T val = get(maxIdx);
+
+            if (!c.contains(val)) {
+                remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
+    public boolean removeAll(@SuppressWarnings("unchecked") T... c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.length == 0) {
+    		return false;
+    	}
+    	
+    	final Set<T> ref = new HashSet<>();
+    	for(T val : c) {
+    		ref.add(val);
+    	}
+    	
+    	final long oldSize = this.uBound;
+    	
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final T val = get(maxIdx);
+            if(ref.contains(val)) {
+            	remove(maxIdx);
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
+    @Override
+	public boolean removeAll(NativeList<T> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final T val = get(maxIdx);
+
+            if (c.contains(val)) {
+                if(!remove(maxIdx)) {
+                	return false;
+                }
+            }
+        }
+
+        return oldSize != this.uBound;
+	}
+    
+    @Override
+    public boolean removeAll(Collection<T> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if(c.size() == 0) {
+    		return false;
+    	}
+    	
+        final long oldSize = this.uBound;
+
+        long maxIdx = this.uBound;
+        while (--maxIdx >= 0) {
+            final T val = get(maxIdx);
+
+            if (c.contains(val)) {
+                if(!remove(maxIdx)) {
+                	return false;
+                }
+            }
+        }
+
+        return oldSize != this.uBound;
+    }
+    
     @Override
     public Stream<T> stream() {
         return StreamSupport.stream(spliterator(), false);
@@ -184,7 +480,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         final List<List<T>> retChunk = new ArrayList<>();
         for (long sequence = 0; sequence < chunkCount; sequence++) {
         	final long from = Integer.MAX_VALUE * sequence;
-            final long to   = Math.min(size(), from + Integer.MAX_VALUE) - from;
+            final long to   = Math.min(size(), from + Integer.MAX_VALUE);
 
             retChunk.add(to == 0 ? List.of() : new ReadOnlyListMock(subList(from, to)));
         }
@@ -312,6 +608,33 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         public <E> E[] toArray(E[] arg0) {
             throw new UnsupportedOperationException("Operation is not supported");
         }
+    }
+    
+    protected abstract static class NativeSplitter<E> implements Spliterator<E> {
+        protected final NativeArray source;
 
+        protected long size;
+
+        protected long uBound;
+        protected long index;
+
+        protected NativeSplitter(NativeArray source, long lBound, long uBound) {
+            this.source = source;
+
+            this.index  = lBound;
+            this.uBound = uBound;
+
+            this.size = uBound - lBound;
+        }
+
+        @Override
+        public int characteristics() {
+            return Spliterator.NONNULL | Spliterator.ORDERED | Spliterator.SIZED | Spliterator.SUBSIZED;
+        }
+
+        @Override
+        public long estimateSize() {
+            return this.size;
+        }
     }
 }

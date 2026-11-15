@@ -1,8 +1,5 @@
 package io.github.seal139.jSwarm.datatype;
 
-import java.lang.foreign.Arena;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -10,275 +7,261 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import io.github.seal139.jSwarm.misc.NativeCleaner;
-import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources;
-import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources.Deallocator;
-
 public interface NativeList<E extends Number> extends Iterable<E> {
 
-    static NativeArray ofStatic(long size) {
-        return new NativeArray(size);
-    }
-
-    static NativeArray atAddress(long address, long size) {
-        return new NativeArray(address, size);
-    }
-
-    static final class DeallocatorImpl implements Deallocator {
-        private Arena arena;
-
-        @Override
-        public void clean() {
-        	if(arena != null) {
-        		this.arena.close();
-        	}
-        	
-        	arena = null;
-        }
-    }
-
-    public static final class NativeArray implements NativeResources {
-        final DeallocatorImpl deallocator = new DeallocatorImpl();
-
-        @Override
-        public Deallocator getDeallocator() { return this.deallocator; }
-
-        @Override
-        public boolean isClosed() { return !this.staticArr && deallocator.arena == null; }
-
-        @Override
-        public void close() throws Exception {
-            this.deallocator.clean();
-        }
-
-        // ===========================================================
-
-        private final static Arena GLOBAL_ARENA = Arena.global();
-
-        private final boolean staticArr;
-
-        private long intptr;
-        private long size;
-
-        private MemorySegment primarySegment;
-
-        public long getSize() { return this.size; }
-
-        public long getIntptr() { return this.intptr; }
-
-        public boolean isStaticArr() { return this.staticArr; }
-
-        @Override
-        public String toString() {
-            return "NativeArray @" + String.valueOf(this.intptr);
-        }
-
-        protected NativeArray(long address, long size) {
-            this.staticArr = true;
-
-            this.primarySegment = MemorySegment.ofAddress(address).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
-
-            this.size   = size;
-            this.intptr = address;
-        }
-
-        protected NativeArray(long initialSize) {
-            this.staticArr = false;
-
-            this.deallocator.arena = Arena.ofShared();
-
-            this.primarySegment = deallocator.arena.allocate(initialSize).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
-
-            this.size   = initialSize;
-            this.intptr = this.primarySegment.address();
-
-            NativeCleaner.register(this);
-        }
-
-        public void reset(long size) {
-            if (this.staticArr) {
-                throw new IllegalArgumentException("Cannot resize static array");
-            }
-
-            final Arena newArena = Arena.ofShared();
-
-            this.primarySegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
-            this.intptr         = this.primarySegment.address();
-            this.size           = size;
-
-            deallocator.arena.close();
-            this.deallocator.arena = newArena;
-        }
-
-        public void resize(long size) {
-            if (this.staticArr) {
-                throw new IllegalArgumentException("Cannot resize static array");
-            }
-
-            final Arena         newArena   = Arena.ofShared();
-            final MemorySegment newSegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
-
-            final long _size = this.size < size ? this.size : size;
-
-            MemorySegment.copy(this.primarySegment, 0, newSegment, 0, _size);
-
-            this.primarySegment    = newSegment;
-            this.intptr 		   = this.primarySegment.address();
-            this.size              = size;
-
-            deallocator.arena.close();
-            this.deallocator.arena = newArena;
-        }
-        
-        public void memcpy(NativeArray source, long destOffset, long srcOffset, long size) {
-        	MemorySegment.copy(source.primarySegment, srcOffset, primarySegment, destOffset, size);
-        }
-
-        public void set(long index, byte value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_BYTE, index, value);
-        }
-
-        public void set(long index, short value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_SHORT, index, value);
-        }
-
-        public void set(long index, int value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_INT, index, value);
-        }
-
-        public void set(long index, long value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_LONG, index, value);
-        }
-
-        public void set(long index, float value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_FLOAT, index, value);
-        }
-
-        public void set(long index, double value) {
-            this.primarySegment.setAtIndex(ValueLayout.JAVA_DOUBLE, index, value);
-        }
-
-        public byte getByte(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_BYTE, index);
-        }
-
-        public short getShort(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_SHORT, index);
-        }
-
-        public int getInt(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_INT, index);
-        }
-
-        public long getLong(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_LONG, index);
-        }
-
-        public float getFloat(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_FLOAT, index);
-        }
-
-        public double getDouble(long index) {
-            return this.primarySegment.getAtIndex(ValueLayout.JAVA_DOUBLE, index);
-        }
-
-        public long getCapacityByte() { return this.size; }
-
-        public long getCapacityShort() { return this.size / 2; }
-
-        public long getCapacityInt() { return this.size / 4; }
-
-        public long getCapacityLong() { return this.size / 8; }
-
-        public long getCapacityFloat() { return this.size / 4; }
-
-        public long getCapacityDouble() { return this.size / 8; }
-    }
-
-    // Primary
+	/**
+     * Get native off-heap pointer address. This value is not static and may change upon resize or reset
+     * @return Off-heap pointer address
+     */
+	long getNativeAddress();
+    
+	/**
+	 * Set the element at the specified position in this list
+	 * @param index Position index
+	 * @param value Value
+	 */
     void set(long index, E value);
+    
+    /**
+     * Returns the element at the specified position in this list.
+     * @param index position index
+     * @return Element value
+     */
     E get(long index);
-    long size();
-    long capacity();
-
-    // Secondary
-    boolean add(E arg0);
-
-    boolean remove(long index);
-    boolean remove(E o);
-
-    void clear();
-
-    long indexOf(Object o);
-    long indexOf(E o);
-
-    long lastIndexOf(Object o);
-    long lastIndexOf(E o);
-
-    // Extension
-    boolean addAll(Collection<E> c);
-
-    boolean removeAll(Collection<E> c);
-
-    boolean retainAll(Collection<E> c);
-
-    default boolean isEmpty() { return size() == 0L; }
-
+    
+    /**
+     * Return the first element in this list
+     * @return Element value
+     */
     default E getFirst() { return get(0); }
 
+    /**
+     * Return the last element in this list
+     * @return Element value
+     */
     default E getLast() { return get(size() - 1); }
+    
+    /**
+     * Returns the number of elements in this list.
+     * @return Number of elements
+     */
+    long size();
+    
+    /**
+     * Returns true if this collection contains no elements.
+     * @return true if list is empty. otherwise false
+     */
+    default boolean isEmpty() { return size() == 0L; }
+    
+    /**
+     * Return the number maximum element based on allocated memory in this list 
+     * @return Number of maximum element
+     */
+    long capacity();
 
-    boolean removeFirst() ;
-    boolean removeLast() ;
+    /**
+     * Inserts the specified element at the last position in this list
+     * 
+     * @param arg0 Value
+     * @return true when successfully inserted
+     */
+    boolean add(E arg0);
+    
+    /**
+     * Bulk insert elements at the last position in this list
+     * @param c elements to add
+     * @return true if successfully added. Otherwise, false
+     */
+    boolean addAll(Collection<E> c);
+    
+    /**
+     * Bulk insert elements at the last position in this list
+     * @param c elements to add
+     * @return true if successfully added. Otherwise, false
+     */
+    boolean addAll(NativeList<E> c);
+    
+    /**
+     * Bulk insert elements at the last position in this list
+     * @param c elements to add
+     * @return true if successfully added. Otherwise, false
+     */
+    boolean addAll(@SuppressWarnings("unchecked") E... c);
+    
+    /**
+     * Remove element at specified index
+     * @param index Element index to remove
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean remove(long index);
+    
+    /**
+     * Find element that matches the input parameter and remove it from list. 
+     * This function only remove the first element found by evaluating equality.
+     * Please note that the removed element is based on search algorithm used by the implementation 
+     * and is not dictated to be the first, the last, or any specific order
+     * @param o Value to be removed from list
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean remove(E o);
+    
+    /**
+     * remove the first element from list
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean removeFirst();
+    
+    /**
+     * remove the last element from list
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean removeLast();
+    
+    /**
+     * Remove all elements specified on parameter
+     * @param c elements to be remove
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean removeAll(Collection<E> c);
+    
+    /**
+     * Remove all elements specified on parameter
+     * @param c elements to be remove
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean removeAll(NativeList<E> c);
 
+    /**
+     * Remove all elements specified on parameter
+     * @param c elements to be remove
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean removeAll(@SuppressWarnings("unchecked") E... c);
+
+    /**
+     * Remove all elements but specified on parameter
+     * @param c elements to be retained
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean retainAll(Collection<E> c);
+    
+    /**
+     * Remove all elements but specified on parameter
+     * @param c elements to be retained
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean retainAll(NativeList<E> c);
+    
+    /**
+     * Remove all elements but specified on parameter
+     * @param c elements to be retained
+     * @return true if successfully removed. Otherwise, false
+     */
+    boolean retainAll(@SuppressWarnings("unchecked") E... c);
+    
+    /**
+     * Remove all elements and reset back capacity to initial size
+     */
+    void clear();
+
+    /**
+     * Find the first element in the list. Please note that this function is for interopability with {@link java.util.List}
+     * @param o Element to find
+     * @return index of element found
+     */
+    long indexOf(Object o);
+    
+    /**
+     * Find the first element in the list
+     * @param o Element to find
+     * @return index of element found
+     */
+    long indexOf(E o);
+
+    /**
+     * Find the last element in the list. Please note that this function is for interopability with {@link java.util.List}
+     * @param o Element to find
+     * @return index of element found
+     */
+    long lastIndexOf(Object o);
+    
+    /**
+     * Find the last element in the list.
+     * @param o Element to find
+     * @return index of element found
+     */
+    long lastIndexOf(E o);
+
+    /**
+     * Determine if this list is contains specified element
+     * @param o Element to find
+     * @return true if contains. Otherwise false
+     */
+    boolean contains(E o) ;
+    
+    /**
+     * Determine if this list is contains specified element. Please note that this function is for interopability with {@link java.util.List}
+     * @param o Element to find
+     * @return true if contains. Otherwise false
+     */
+    boolean contains(Object o) ;
+    
+    /**
+     * Determine if list contains all elements specified by parameter
+     * @param c specified elements
+     * @return true if this list contains all elements. Otherwise false
+     */
     boolean containsAll(Collection<?> c);
     
+    /**
+     * Determine if list contains all elements specified by parameter
+     * @param c specified elements
+     * @return true if this list contains all elements. Otherwise false
+     */
     boolean containsAll(NativeList<E> c);
+    
+    /**
+     * Determine if list contains all elements specified by parameter
+     * @param c specified elements
+     * @return true if this list contains all elements. Otherwise false
+     */
+    boolean containsAll(@SuppressWarnings("unchecked") E... c);
+    
 
-    boolean contains(E o) ;
-
-    boolean contains(Object o) ;
-
-    // Interopability
+    /**
+     * Wrap value for java standard {@link Collection} or {@link java.util.List} interopability. 
+     * This function is guaranteed to be zero-copy.
+     * Because this List is based on long indexer, wrap into {@link java.util.List} of {@link java.util.List}
+     * @return A readonly {@link java.util.List} of {@link java.util.List} containing elements
+     */
     List<List<E>> asList();
 
-    Stream<E> stream() ;
-
-    Stream<E> parallelStream() ;
-
-    Iterator<E> iterator();
-
+    /**
+     * Get sublist projection from specified index (inclusive) to specified index (exclusive)
+     * @param fromIndex From (inclusive)
+     * @param toIndex To (Exclusive)
+     * @return Projection {@link NativeList}
+     */
     NativeList<E> subList(long fromIndex, long toIndex);
+    
+    /**
+     * Returns a sequential Stream with this collection as its source.
+     * @return Stream
+     */
+    Stream<E> stream();
 
+    /**
+     * Returns a possibly parallel Stream with this collection as its source.
+     * @return Possibly parallel Stream
+     */
+    Stream<E> parallelStream();
+
+    @Override
+    Iterator<E> iterator();
+    
+    @Override
     void forEach(Consumer<? super E> action);
 
+    @Override
     Spliterator<E> spliterator();
-
-    abstract static class NativeSplitter<E> implements Spliterator<E> {
-        protected final NativeArray source;
-
-        protected long size;
-
-        protected long uBound;
-        protected long index;
-
-        protected NativeSplitter(NativeArray source, long lBound, long uBound) {
-            this.source = source;
-
-            this.index  = lBound;
-            this.uBound = uBound;
-
-            this.size = uBound - lBound;
-        }
-
-        @Override
-        public int characteristics() {
-            return Spliterator.NONNULL | Spliterator.ORDERED | Spliterator.SIZED | Spliterator.SUBSIZED;
-        }
-
-        @Override
-        public long estimateSize() {
-            return this.size;
-        }
-    }
 }
