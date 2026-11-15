@@ -296,11 +296,17 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     	
     	final long totalIter = c.size() * size();
     	
-    	if(totalIter <= THRESHOLD) {
-    		return c.stream().allMatch(v -> this.contains(v));
-		}else {
+    	if(totalIter > THRESHOLD) {
 			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
+    	
+    	for(T val : c) {
+    		if(!this.contains(val)) {
+    			return false;
+    		}
+    	}
+    	
+    	return true;
     }
     
     @Override
@@ -428,9 +434,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
             final T val = get(maxIdx);
 
             if (c.contains(val)) {
-                if(!remove(maxIdx)) {
-                	return false;
-                }
+            	remove(maxIdx);
             }
         }
 
@@ -454,9 +458,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
             final T val = get(maxIdx);
 
             if (c.contains(val)) {
-                if(!remove(maxIdx)) {
-                	return false;
-                }
+            	remove(maxIdx);
             }
         }
 
