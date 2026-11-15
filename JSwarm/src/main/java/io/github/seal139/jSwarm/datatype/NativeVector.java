@@ -20,6 +20,7 @@
 package io.github.seal139.jSwarm.datatype;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -286,11 +287,17 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     	
     	final long totalIter = c.size() * size();
 
-    	if(totalIter <= THRESHOLD) {
-    		return c.stream().allMatch(v -> this.contains(v));
-		}else {
+    	if(totalIter > THRESHOLD) {
 			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
+    	
+    	for(Object val : c) {
+    		if(!this.contains(val)) {
+    			return false;
+    		}
+    	}
+    	
+    	return true;
     }
 
     @Override
@@ -487,7 +494,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
     @Override
     public List<List<T>> asList() {
-        final long chunkCount = 1 + (int) (size() / Integer.MAX_VALUE);
+        final long chunkCount = 1 + (int) ((size() - 1) / Integer.MAX_VALUE);
 
         final List<List<T>> retChunk = new ArrayList<>();
         for (long sequence = 0; sequence < chunkCount; sequence++) {
@@ -546,6 +553,27 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         @Override
         public boolean isEmpty() { return ref.isEmpty(); }
 
+        @Override
+        public Object[] toArray() {
+        	return toArray(new Object[] {});        	
+        }
+
+		@Override
+        @SuppressWarnings("unchecked")
+        public <E> E[] toArray(E[] a) {
+        	 int currentSize = size();
+        	 if(a.length < currentSize) {
+        		 a = (E[]) Array.newInstance(a.getClass().getComponentType(), currentSize);
+        	 }
+
+             int i = 0;
+             for (T item : ReadOnlyListMock.this) {
+                 a[i++] = (E) item;
+             }
+
+             return a;
+		}
+        
         @Override
         public Iterator<T> iterator() {
             return ref.iterator();
@@ -662,16 +690,6 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         @Override
         public T set(int arg0, T arg1) {
             throw new UnsupportedOperationException("List is readonly");
-        }
-
-        @Override
-        public Object[] toArray() {
-            throw new UnsupportedOperationException("Operation is not supported");
-        }
-
-        @Override
-        public <E> E[] toArray(E[] arg0) {
-            throw new UnsupportedOperationException("Operation is not supported");
         }
     }
     
