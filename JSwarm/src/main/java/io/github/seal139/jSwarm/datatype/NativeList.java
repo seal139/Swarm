@@ -9,7 +9,7 @@ import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public interface NativeList<E extends Number> extends Iterable<E>, RandomAccess, Serializable {
+public interface NativeList<E extends Number> extends Iterable<E>, RandomAccess, Serializable, AutoCloseable {
 
 	/**
      * Get native off-heap pointer address. This value is not static and may change upon resize or reset

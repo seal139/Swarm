@@ -506,6 +506,11 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         return Collections.unmodifiableList(retChunk);
     }
+    
+    @Override
+	public void close() throws Exception {
+    	this.container.close();
+	}
 
     private final class ReadOnlyListMock implements List<T>, Serializable, RandomAccess {
         private static final long serialVersionUID = -6927485013065693623L;
