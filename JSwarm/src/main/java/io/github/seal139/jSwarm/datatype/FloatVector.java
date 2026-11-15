@@ -96,7 +96,7 @@ public final class FloatVector extends NativeVector<Float> {
 
     @Override
     public Float get(long index) {
-        return get(index);
+        return getPrimitive(index);
     }
 
     public float getPrimitive(long index) {
@@ -175,7 +175,9 @@ public final class FloatVector extends NativeVector<Float> {
              return false;
          }
     	 
-    	final long remaining = this.capacity - (this.size() + c.size());
+    	 final long totalSize = this.size() + c.size();
+    	 
+    	final long remaining = this.capacity - totalSize;
     	if(remaining < 0) {
     		if (this.sublist || this.container.isStaticArr()) {
                 return false;
@@ -189,7 +191,7 @@ public final class FloatVector extends NativeVector<Float> {
     	}
     	
     	container.memcpy(c.container, (this.offset + this.size()) * 4, c.offset * 4, c.size() * 4);
-    	uBound = this.size() + c.size();
+    	uBound = totalSize;
 		return true;
     }
     
@@ -200,7 +202,7 @@ public final class FloatVector extends NativeVector<Float> {
     
     public long indexOf(float value) {
     	for (long idx = 0; idx < this.uBound; idx++) {
-            float val = get(idx);
+            float val = getPrimitive(idx);
 
             if (val == value) {
                 return idx;
@@ -309,11 +311,17 @@ public final class FloatVector extends NativeVector<Float> {
     	
     	final long totalIter = c.size() * size();
     	
-    	if(totalIter <= THRESHOLD) {
-    		return c.stream().allMatch(v -> this.contains(v));
-		}else {
-			return c.parallelStream().allMatch(v -> this.contains(v));
+    	if(totalIter > THRESHOLD) {
+			return c.parallelStream().allMatch(v -> this.contains(v.floatValue()));
     	}
+    	
+    	for(long i = 0; i < c.size(); i++) {
+    		if(!this.contains(c.getPrimitive(i))) {
+    			return false;
+    		}
+    	}
+    	
+    	return true;
     }
     
     @Override

@@ -97,7 +97,7 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
     @Override
     public long getNativeAddress() {
-    	return container.getNativeAddress();
+    	return container.getNativeAddress() + offset;
     }
     
     @Override
