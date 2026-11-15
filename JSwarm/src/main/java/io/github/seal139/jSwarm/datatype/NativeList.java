@@ -131,7 +131,7 @@ public interface NativeList<E extends Number> extends Iterable<E> {
         }
         
         public void memcpy(NativeArray source, long destOffset, long srcOffset, long size) {
-        	MemorySegment.copy(source.primarySegment, destOffset, primarySegment, srcOffset, size);
+        	MemorySegment.copy(source.primarySegment, srcOffset, primarySegment, destOffset, size);
         }
 
         public void set(long index, byte value) {

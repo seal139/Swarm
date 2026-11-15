@@ -36,9 +36,10 @@ import java.util.stream.StreamSupport;
  * extension of 64 bit indexing for extremely large dataset and unchecked bound
  * for high performance purpose
  */
-public abstract class NativeVector<T extends Number> //
-        implements NativeList<T> {
+public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
+	protected static final long THRESHOLD = 10_000_000L;
+	
     protected final boolean sublist;
 
     protected final NativeArray container;
@@ -100,32 +101,6 @@ public abstract class NativeVector<T extends Number> //
     }
     
     @Override
-    public boolean addAll(Collection<T> c) {
-    	if (c.size() == 0) {
-            return false;
-        }
-    	
-    	final long remaining = this.capacity - (this.size() + c.size());
-    	if(remaining < 0) {
-    		if (this.sublist || this.container.isStaticArr()) {
-                return false;
-            }
-    		
-            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
-            final long exactSize     = this.capacity - remaining;
-    		
-    		this.capacity = Math.max(geometricSize, exactSize);
-    		container.resize(this.capacity * 4);
-    	}
-    	
-    	for(T val : c) {
-    		set(uBound++, val);
-    	}
-    	
-    	return true;
-    }
-    
-    @Override
     public long indexOf(Object o) {
         for (long idx = 0; idx < this.uBound; idx++) {
             T val = get(idx);
@@ -174,9 +149,8 @@ public abstract class NativeVector<T extends Number> //
     
     public boolean containsAll(Collection<?> c) {
     	final long totalIter = c.size() * size();
-    	final long threshold = 10_000_000L;
 
-    	if(totalIter <= threshold) {
+    	if(totalIter <= THRESHOLD) {
     		return c.stream().allMatch(v -> this.contains(v));
 		}else {
 			return c.parallelStream().allMatch(v -> this.contains(v));
@@ -185,10 +159,8 @@ public abstract class NativeVector<T extends Number> //
     
     public boolean containsAll(NativeList<T> c) {
     	final long totalIter = c.size() * size();
-    	final long threshold = 10_000_000L;
     	
-
-    	if(totalIter <= threshold) {
+    	if(totalIter <= THRESHOLD) {
     		return c.stream().allMatch(v -> this.contains(v));
 		}else {
 			return c.parallelStream().allMatch(v -> this.contains(v));
@@ -211,8 +183,8 @@ public abstract class NativeVector<T extends Number> //
 
         final List<List<T>> retChunk = new ArrayList<>();
         for (long sequence = 0; sequence < chunkCount; sequence++) {
-            long from = Integer.MAX_VALUE * sequence;
-            long to   = Math.min(size(), from + Integer.MAX_VALUE) - from;
+        	final long from = Integer.MAX_VALUE * sequence;
+            final long to   = Math.min(size(), from + Integer.MAX_VALUE) - from;
 
             retChunk.add(to == 0 ? List.of() : new ReadOnlyListMock(subList(from, to)));
         }
@@ -229,9 +201,7 @@ public abstract class NativeVector<T extends Number> //
 
         @Override
         public List<T> subList(int fromIndex, int toIndex) {
-        	final int size = toIndex - fromIndex;
-        	
-        	return size == 0 ? List.of() : new ReadOnlyListMock(this.ref.subList(fromIndex, size)).ref.asList().get(0);
+        	return toIndex == fromIndex ? List.of() : new ReadOnlyListMock(this.ref.subList(fromIndex, toIndex)).ref.asList().get(0);
         }
 
         @Override

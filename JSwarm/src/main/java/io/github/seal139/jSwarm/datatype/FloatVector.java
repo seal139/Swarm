@@ -129,7 +129,41 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
         return true;
     }
     
+    @Override
+    public boolean addAll(Collection<Float> c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
+    	if (c.size() == 0) {
+            return false;
+        }
+    	
+    	final long remaining = this.capacity - (this.size() + c.size());
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * 4);
+    	}
+    	
+    	for(Float val : c) {
+    		setPrimitive(uBound++, val.floatValue());
+    	}
+    	
+    	return true;
+    }
+    
     public boolean addAll(float... c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
         final int size = c.length;
 
         if (size == 0) {
@@ -157,6 +191,10 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
     
     public boolean addAll(FloatVector c) {
+    	if(c == null) {
+    		return false;
+    	}
+    	
     	 if (c.size() == 0) {
              return false;
          }
@@ -322,9 +360,8 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     
     public boolean containsAll(FloatVector c) {
     	final long totalIter = c.size() * size();
-    	final long threshold = 10_000_000L;
     	
-    	if(totalIter <= threshold) {
+    	if(totalIter <= THRESHOLD) {
     		return c.stream().allMatch(v -> this.contains(v));
 		}else {
 			return c.parallelStream().allMatch(v -> this.contains(v));
@@ -348,8 +385,6 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
 
     // Extension
-
-    
 
     @Override
     public boolean retainAll(Collection<Float> c) {
