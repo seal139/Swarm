@@ -23,6 +23,7 @@ import java.lang.foreign.Arena;
 import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 
+import io.github.seal139.jSwarm.misc.Common;
 import io.github.seal139.jSwarm.misc.NativeCleaner;
 import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources;
 
@@ -102,7 +103,11 @@ public final class NativeArray implements NativeResources {
     protected NativeArray(long address, long size) {
         this.staticArr = true;
 
-        this.primarySegment = MemorySegment.ofAddress(address).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        if(Common.isDebugMode()) {
+            this.primarySegment = MemorySegment.ofAddress(address).reinterpret(size, GLOBAL_ARENA, null);
+        }else {
+            this.primarySegment = MemorySegment.ofAddress(address).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        }
 
         this.size   = size;
         this.intptr = address;
@@ -117,8 +122,12 @@ public final class NativeArray implements NativeResources {
 
         this.deallocator.arena = Arena.ofShared();
 
-        this.primarySegment = deallocator.arena.allocate(initialSize).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
-
+        if(Common.isDebugMode()) {
+            this.primarySegment = deallocator.arena.allocate(initialSize);
+        }else {
+        	this.primarySegment = deallocator.arena.allocate(initialSize).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        }
+        
         this.size   = initialSize;
         this.intptr = this.primarySegment.address();
 
@@ -137,7 +146,12 @@ public final class NativeArray implements NativeResources {
 
         final Arena newArena = Arena.ofShared();
 
-        this.primarySegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        if(Common.isDebugMode()) {
+        	this.primarySegment = newArena.allocate(size);
+        }else {
+        	this.primarySegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        }
+        
         this.intptr         = this.primarySegment.address();
         this.size           = size;
 
@@ -156,7 +170,13 @@ public final class NativeArray implements NativeResources {
         }
 
         final Arena         newArena   = Arena.ofShared();
-        final MemorySegment newSegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        
+        final MemorySegment newSegment;
+        if(Common.isDebugMode()) {
+        	newSegment = newArena.allocate(size);
+        }else {
+        	newSegment = newArena.allocate(size).reinterpret(Long.MAX_VALUE, GLOBAL_ARENA, null);
+        }
 
         final long _size = this.size < size ? this.size : size;
 
@@ -179,6 +199,17 @@ public final class NativeArray implements NativeResources {
      */
     public void memcpy(NativeArray source, long destOffset, long srcOffset, long size) {
     	MemorySegment.copy(source.primarySegment, srcOffset, primarySegment, destOffset, size);
+    }
+    
+    /**
+     * Bulk copy from another {@link MemorySegment}
+     * @param source Source data to copy
+     * @param destOffset Start offset index where copied data will be placed
+     * @param srcOffset Source offset index
+     * @param size Count of data to be copy
+     */
+    public void memcpy(MemorySegment source, long destOffset, long srcOffset, long size) {
+    	MemorySegment.copy(source, srcOffset, primarySegment, destOffset, size);
     }
 
     /**

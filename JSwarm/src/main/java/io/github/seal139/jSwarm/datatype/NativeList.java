@@ -1,13 +1,15 @@
 package io.github.seal139.jSwarm.datatype;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.RandomAccess;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public interface NativeList<E extends Number> extends Iterable<E> {
+public interface NativeList<E extends Number> extends Iterable<E>, RandomAccess, Serializable {
 
 	/**
      * Get native off-heap pointer address. This value is not static and may change upon resize or reset

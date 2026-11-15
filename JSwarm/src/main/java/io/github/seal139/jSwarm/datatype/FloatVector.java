@@ -19,6 +19,7 @@
 
 package io.github.seal139.jSwarm.datatype;
 
+import java.lang.foreign.MemorySegment;
 import java.util.Iterator;
 import java.util.Spliterator;
 import java.util.function.Consumer;
@@ -27,6 +28,8 @@ import java.util.function.Consumer;
  * High performance Float Vector.
  */
 public final class FloatVector extends NativeVector<Float> {
+
+	private static final long serialVersionUID = -4712556364774789210L;
 
 	@Override
 	protected long getDataSize() {
@@ -149,10 +152,9 @@ public final class FloatVector extends NativeVector<Float> {
     		this.capacity = Math.max(geometricSize, exactSize);
     		container.resize(this.capacity * 4);
     	}
-
-        for (int i = 0; i < size; i++) {
-        	set(uBound++, c[i]);
-        }
+        
+        final MemorySegment srcSegment = MemorySegment.ofArray(c);
+    	container.memcpy(srcSegment, (this.offset + this.size()) * 4L, 0L, (long)size * 4);
 
         return true;
     }
@@ -291,7 +293,8 @@ public final class FloatVector extends NativeVector<Float> {
     public boolean contains(float o) {
     	return indexOf(o) >= 0;
 	}
-    
+
+    @Override
     public boolean containsAll(NativeList<Float> c) {
     	if(c instanceof FloatVector o) {
     		return containsAll(o);
@@ -416,6 +419,12 @@ public final class FloatVector extends NativeVector<Float> {
     public void forEach(Consumer<? super Float> action) {
         for (long i = 0; i < this.uBound; i++) {
             action.accept(get(i));
+        }
+    }
+    
+    public void forEachPrimitive(FloatConsumer action) {
+        for (long i = 0; i < this.uBound; i++) {
+            action.accept(getPrimitive(i));
         }
     }
 

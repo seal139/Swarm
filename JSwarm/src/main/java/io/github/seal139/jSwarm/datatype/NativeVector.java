@@ -19,6 +19,7 @@
 
 package io.github.seal139.jSwarm.datatype;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.RandomAccess;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.stream.Stream;
@@ -40,6 +42,8 @@ import java.util.stream.StreamSupport;
  * for high performance purpose
  */
 public abstract class NativeVector<T extends Number> implements NativeList<T> {
+
+	private static final long serialVersionUID = 2601589818012298743L;
 
 	protected static final long THRESHOLD = 10_000_000L;
 	
@@ -241,14 +245,17 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
     	return true;
 	}
     
+    @Override
     public boolean contains(T o) {
         return indexOf(o) >= 0;
     }
-
+    
+    @Override
     public boolean contains(Object o) {
         return indexOf(o) >= 0;
     }
-    
+
+    @Override
     public boolean containsAll(@SuppressWarnings("unchecked") T... c) {
     	if(c == null) {
     		return false;
@@ -266,7 +273,8 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         return true;
     }
-    
+
+    @Override
     public boolean containsAll(Collection<?> c) {
     	if(c == null) {
     		return false;
@@ -284,7 +292,8 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 			return c.parallelStream().allMatch(v -> this.contains(v));
     	}
     }
-    
+
+    @Override
     public boolean containsAll(NativeList<T> c) {
     	if(c == null) {
     		return false;
@@ -389,7 +398,8 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         return oldSize != this.uBound;
     }
-    
+
+    @Override
     public boolean removeAll(@SuppressWarnings("unchecked") T... c) {
     	if(c == null) {
     		return false;
@@ -490,8 +500,9 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         return Collections.unmodifiableList(retChunk);
     }
 
-    private final class ReadOnlyListMock implements List<T> {
-        private final NativeList<T> ref;
+    private final class ReadOnlyListMock implements List<T>, Serializable, RandomAccess {
+        private static final long serialVersionUID = -6927485013065693623L;
+		private final NativeList<T> ref;
 
         private ReadOnlyListMock(NativeList<T> reference) {
             this.ref = reference;
@@ -539,6 +550,63 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
         public Iterator<T> iterator() {
             return ref.iterator();
         }
+        
+        @Override
+        public ListIterator<T> listIterator(int index) {
+        	return new ListIterator<T>() {
+        		final int offset = index;
+        		final int uBound = (int) (ref.size() - 1);
+        		
+        		int pointer = 0;
+        		
+				@Override
+				public boolean hasNext() {
+					return pointer < uBound;
+				}
+
+				@Override
+				public boolean hasPrevious() {
+					return pointer > offset;
+				}
+
+				@Override
+				public T next() {
+					return ref.get(pointer++);
+				}
+
+				@Override
+				public int nextIndex() {
+					return pointer + 1;
+				}
+
+				@Override
+				public T previous() {
+					return ref.get(--pointer);
+				}
+
+				@Override
+				public int previousIndex() {
+					return pointer - 1;
+				}
+				
+				@Override
+				public void add(T arg0) {
+					throw new UnsupportedOperationException("Operation is not supported");
+				}
+
+				@Override
+				public void remove() {
+					throw new UnsupportedOperationException("Operation is not supported");					
+				}
+
+				@Override
+				public void set(T arg0) {
+					throw new UnsupportedOperationException("Operation is not supported");
+				}
+
+        	};
+        }
+        
         // ===========
 
         @Override
@@ -568,11 +636,6 @@ public abstract class NativeVector<T extends Number> implements NativeList<T> {
 
         @Override
         public ListIterator<T> listIterator() {
-            throw new UnsupportedOperationException("Operation is not supported");
-        }
-
-        @Override
-        public ListIterator<T> listIterator(int index) {
             throw new UnsupportedOperationException("Operation is not supported");
         }
 
