@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Spliterator;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 /**
  * High performance Float Vector.
@@ -131,37 +130,51 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
     }
     
     public boolean addAll(float... c) {
-        if (c == null) {
-            return false;
-        }
-
         final int size = c.length;
 
         if (size == 0) {
             return false;
         }
+        
+        final long remaining = this.capacity - (this.size() + c.length);
+        if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * 4);
+    	}
 
         for (int i = 0; i < size; i++) {
-          if(!addPrimitive(c[i])) {
-        	  return false;
-          }
+        	setPrimitive(uBound++, c[i]);
         }
 
         return true;
     }
     
     public boolean addAll(FloatVector c) {
+    	 if (c.size() == 0) {
+             return false;
+         }
+    	 
     	final long remaining = this.capacity - (this.size() + c.size());
     	if(remaining < 0) {
     		if (this.sublist || this.container.isStaticArr()) {
                 return false;
             }
     		
-    		this.capacity -= remaining;
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
     		container.resize(this.capacity * 4);
     	}
     	
-    	container.memcpy(c.container, this.size() * 4, c.size() * 4);
+    	container.memcpy(c.container, (this.offset + this.size()) * 4, c.offset * 4, c.size() * 4);
     	uBound = this.size() + c.size();
 		return true;
     }
@@ -383,7 +396,7 @@ public final class FloatVector extends NativeVector<Float> implements NativeList
 
     @Override
     public FloatVector subList(long fromIndex, long toIndex) {
-        return new FloatVector(this, fromIndex, toIndex);
+        return new FloatVector(this, fromIndex, toIndex - fromIndex);
     }
 
     @Override

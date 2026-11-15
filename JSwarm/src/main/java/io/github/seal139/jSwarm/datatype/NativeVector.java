@@ -101,10 +101,25 @@ public abstract class NativeVector<T extends Number> //
     
     @Override
     public boolean addAll(Collection<T> c) {
-    	for(T v : c) {
-    		if(!add(v)) {
-    			return false;
-    		}
+    	if (c.size() == 0) {
+            return false;
+        }
+    	
+    	final long remaining = this.capacity - (this.size() + c.size());
+    	if(remaining < 0) {
+    		if (this.sublist || this.container.isStaticArr()) {
+                return false;
+            }
+    		
+            final long geometricSize = ((long) (this.capacity * 0.4) + this.capacity + 1);
+            final long exactSize     = this.capacity - remaining;
+    		
+    		this.capacity = Math.max(geometricSize, exactSize);
+    		container.resize(this.capacity * 4);
+    	}
+    	
+    	for(T val : c) {
+    		set(uBound++, val);
     	}
     	
     	return true;

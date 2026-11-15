@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Spliterator;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import io.github.seal139.jSwarm.misc.NativeCleaner;
 import io.github.seal139.jSwarm.misc.NativeCleaner.NativeResources;
@@ -131,8 +130,8 @@ public interface NativeList<E extends Number> extends Iterable<E> {
             this.deallocator.arena = newArena;
         }
         
-        public void memcpy(NativeArray source, long offset, long size) {
-        	MemorySegment.copy(source.primarySegment, 0, primarySegment, offset, size);
+        public void memcpy(NativeArray source, long destOffset, long srcOffset, long size) {
+        	MemorySegment.copy(source.primarySegment, destOffset, primarySegment, srcOffset, size);
         }
 
         public void set(long index, byte value) {
